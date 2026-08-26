@@ -1,0 +1,21 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Ventanilla — smoke test</title>
+<h1>WebMCP smoke test</h1>
+<pre id="out">esperando…</pre>
+<script type="module">
+const out = document.getElementById('out');
+if (!('modelContext' in document)) {
+  out.textContent = 'FALLO: document.modelContext no existe.';
+} else {
+  await document.modelContext.registerTool({
+    name: 'ping',
+    title: 'Ping',
+    description: 'Devuelve pong y la hora del navegador. Verifica que WebMCP funciona.',
+    inputSchema: { type: 'object', properties: {} },
+    annotations: { readOnlyHint: true },
+    execute: async () => ({ content: [{ type: 'text', text: 'pong ' + new Date().toISOString() }] })
+  });
+  out.textContent = 'OK: tool "ping" registrada.';
+}
+</script>
