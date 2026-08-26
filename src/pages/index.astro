@@ -1,0 +1,35 @@
+---
+const buildTime = new Date().toISOString();
+---
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ventanilla — agent-native paperwork</title>
+  </head>
+  <body>
+    <main>
+      <h1>Ventanilla</h1>
+      <p>Administrative paperwork for Spanish freelancers, built so a person and their agent can do it together.</p>
+      <p id="webmcp-status" data-status="unknown">Checking WebMCP support…</p>
+      <p><small>Build {buildTime}</small></p>
+    </main>
+
+    <script>
+      import { registerTools } from '../tools/register';
+      import { isSupported } from '../lib/webmcp';
+
+      const el = document.getElementById('webmcp-status')!;
+      const names = await registerTools();
+
+      if (!isSupported()) {
+        el.dataset.status = 'unsupported';
+        el.textContent = 'WebMCP not available. Use Chrome 149+ with the WebMCP trial enabled, or the ChatGPT desktop browser.';
+      } else {
+        el.dataset.status = 'ready';
+        el.dataset.tools = names.join(',');
+        el.textContent = `WebMCP ready — ${names.length} tool(s) registered: ${names.join(', ')}`;
+      }
+    </script>
+  </body>
+</html>
