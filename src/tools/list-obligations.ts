@@ -1,5 +1,6 @@
 import { text, type ToolDefinition } from '../lib/webmcp';
-import { getProfile, today } from '../lib/db';
+import { getMode, getProfile, isProfileComplete, today } from '../lib/db';
+import { modeNotice } from '../lib/mode';
 import { upcomingObligations } from '../lib/obligations';
 import { renderObligations, highlight } from '../lib/render';
 
@@ -31,7 +32,19 @@ export const listObligations: ToolDefinition<Input> = {
   },
   annotations: { readOnlyHint: true },
   execute: async ({ withinDays = 365 } = {}) => {
-    const profile = await getProfile();
+    const mode = await getMode();
+    const profile = await getProfile(mode);
+
+    // Real mode never borrows demo data to fill a gap. Answering with someone
+    // else's registration date would produce confident, wrong deadlines.
+    if (!isProfileComplete(profile)) {
+      return text(
+        `${modeNotice(mode)} No deadlines can be worked out yet: this profile has no `
+        + 'registration date, tax ID or name. The person needs to fill those in on the page — '
+        + 'an agent cannot supply them, and guessing would produce wrong deadlines.',
+      );
+    }
+
     const now = today();
     const obligations = upcomingObligations(profile, now, withinDays);
 
@@ -39,7 +52,7 @@ export const listObligations: ToolDefinition<Input> = {
     highlight('obligations');
 
     if (obligations.length === 0) {
-      return text(`Nothing due within ${withinDays} days (checked on ${now}).`);
+      return text(`${modeNotice(mode)} Nothing due within ${withinDays} days (checked on ${now}).`);
     }
 
     const lines = obligations.map(o =>
@@ -47,10 +60,10 @@ export const listObligations: ToolDefinition<Input> = {
       + `${o.daysRemaining} days away. By direct debit: ${o.directDebitDueDate}. ${o.reason}`);
 
     return text(
-      `${obligations.length} obligation(s) due within ${withinDays} days, as of ${now}:\n`
-      + lines.join('\n')
-      + '\n\nDeadlines move to the next working day when they fall on a weekend. '
-      + 'Public holidays are not applied in this demo.',
+      `${modeNotice(mode)} ${obligations.length} obligation(s) due within ${withinDays} days, `
+      + `as of ${now}:\n${lines.join('\n')}\n\n`
+      + 'Deadlines move to the next working day when they fall on a weekend. '
+      + 'Public holidays are not applied.',
     );
   },
 };

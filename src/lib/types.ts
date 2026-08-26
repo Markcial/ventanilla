@@ -1,10 +1,12 @@
 /** Shared domain types. Everything here is stored locally, in the user's browser. */
+import type { Mode } from './mode';
 
 export type VatRegime = 'general' | 'exempt';
 export type IncomeTaxMethod = 'direct' | 'modules';
 
 export interface Profile {
-  id: 'me';
+  /** Demo and real profiles are stored side by side and never merged. */
+  id: Mode;
   name: string;
   /** Spanish tax ID. Never leaves this browser. */
   nif: string;
@@ -17,6 +19,8 @@ export interface Profile {
 
 export interface Invoice {
   id: string;
+  /** Which mode created this. Demo invoices must never leak into real totals. */
+  mode: Mode;
   issuedOn: string;
   clientName: string;
   clientNif: string;

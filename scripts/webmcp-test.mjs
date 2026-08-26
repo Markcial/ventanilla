@@ -26,6 +26,14 @@ function assert(cond, msg) {
   if (!cond) throw new Error(msg);
 }
 
+const settle = ms => new Promise(r => setTimeout(r, ms));
+
+/** Click a mode button the way a person would, then let the async switch finish. */
+async function switchMode(client, mode) {
+  await client.evaluate(`document.querySelector('[data-set-mode="${mode}"]').click()`);
+  await settle(600);
+}
+
 const site = await serve('dist');
 console.log(`serving dist/ at ${site.url}`);
 console.log('WebMCP integration tests\n');
@@ -101,6 +109,61 @@ try {
       const narrow = c.text(await c.invoke('list_obligations', { withinDays: 30 }));
       assert(wide !== narrow, 'wide and narrow windows returned identical output');
       assert(/Nothing due within 30 days/.test(narrow), `unexpected narrow output:\n${narrow}`);
+    })(client);
+
+    await check('demo is the mode a first-time visitor lands in', async c => {
+      // A judge has never registered as a Spanish freelancer. The page has to work
+      // for them without any setup at all.
+      const mode = await c.evaluate(`document.body.dataset.mode`);
+      assert(mode === 'demo', `landed in "${mode}" mode`);
+      const pressed = await c.evaluate(
+        `document.querySelector('[data-set-mode="demo"]').getAttribute('aria-pressed')`);
+      assert(pressed === 'true', 'demo button was not shown as selected');
+    })(client);
+
+    await check('no tool can change the mode', async c => {
+      // The safety boundary of the whole design. An agent able to move someone from
+      // demo to real could get them to sign something real while they believed they
+      // were trying a demo. Switching stays a human action.
+      const suspicious = c.listTools().filter(t =>
+        /mode|switch|real|demo/i.test(t.name) || /switch.*mode|enter real/i.test(t.description));
+      assert(suspicious.length === 0,
+        `these tools look like they could change mode: ${suspicious.map(t => t.name).join(', ')}`);
+    })(client);
+
+    await check('tool results say which mode produced them', async c => {
+      const body = c.text(await c.invoke('list_obligations', { withinDays: 365 }));
+      assert(body.includes('[demo mode'),
+        `no mode marker in the result, so an agent could report sample data as real:\n${body}`);
+    })(client);
+
+    await check('real mode refuses to guess instead of borrowing demo data', async c => {
+      await switchMode(c, 'real');
+      const body = c.text(await c.invoke('list_obligations', { withinDays: 365 }));
+      assert(body.includes('[real mode'), `mode marker wrong:\n${body}`);
+      assert(!/modelo 303/.test(body),
+        `real mode answered with deadlines despite an empty profile — it borrowed demo data:\n${body}`);
+      assert(/fill/i.test(body), `no prompt to complete the profile:\n${body}`);
+    })(client);
+
+    await check('switching modes clears the other mode answers off screen', async c => {
+      await switchMode(c, 'demo');
+      await c.invoke('list_obligations', { withinDays: 365 });
+      const before = Number(await c.evaluate(`document.querySelectorAll('.obligation').length`));
+      assert(before > 0, 'demo mode rendered nothing to begin with');
+      await switchMode(c, 'real');
+      const after = Number(await c.evaluate(`document.querySelectorAll('.obligation').length`));
+      assert(after === 0, `${after} demo obligations were still on screen in real mode`);
+    })(client);
+
+    await check('real mode offers a form to enter your own details', async c => {
+      await switchMode(c, 'real');
+      const hasForm = await c.evaluate(`!!document.getElementById('profile-form')`);
+      assert(hasForm, 'real mode showed no profile form');
+      const demoNif = await c.evaluate(
+        `document.querySelector('#profile-form [name=nif]')?.value ?? ''`);
+      assert(demoNif === '', `real mode pre-filled the demo tax ID "${demoNif}"`);
+      await switchMode(c, 'demo');
     })(client);
 
     await check('unknown tool fails loudly', async c => {

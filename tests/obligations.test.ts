@@ -5,7 +5,7 @@ import {
 import type { Profile } from '../src/lib/types';
 
 const base: Profile = {
-  id: 'me', name: 'Test', nif: '00000000T',
+  id: 'demo', name: 'Test', nif: '00000000T',
   startedTrading: '2020-01-01',
   vatRegime: 'general', incomeTaxMethod: 'direct', hasEmployees: false,
 };

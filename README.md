@@ -31,6 +31,37 @@ A capability only becomes a tool if all three hold:
 
 Anything failing one of those is a chatbot with extra steps, and was cut.
 
+## Two modes
+
+Whoever opens this has never registered as a Spanish freelancer, has no invoices
+and no certificate. So there are two modes, and demo is the one you land in.
+
+|  | Demo | Real |
+|---|---|---|
+| Profile | sample freelancer, pre-filled | yours, you type it in |
+| Invoices | six sample invoices across Q3 2026 | yours |
+| Calculations | the same code as real mode | the same code as demo mode |
+| Signing | simulated | AutoFirma, your own certificate |
+| Submitted to AEAT | never | never |
+
+Neither mode files anything. Filing on someone else's behalf requires registered
+*colaborador social* status, which this is not — so the honest ceiling is a
+prepared, signed document, and both modes say so.
+
+Demo and real data are separated in storage rather than filtered at the call
+site, so a missed filter cannot mix sample invoices into real totals. Real mode
+with an unfinished profile refuses to answer rather than borrowing demo values,
+because confident wrong deadlines are worse than no deadlines.
+
+### Switching modes is not a tool
+
+An agent that could move someone from demo to real could get them to sign
+something real while they believed they were trying a demo. The switch is a
+button, reachable only by a person, and a test asserts no tool exposes it.
+
+Every tool result carries its mode, so an agent cannot report sample data as
+real even by accident.
+
 ## Tools
 
 | Tool | What it needs to know about you | What you get |

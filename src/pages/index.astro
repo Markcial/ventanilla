@@ -6,49 +6,60 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Ventanilla — agent-native paperwork</title>
   </head>
-  <body>
+  <body data-mode="demo">
     <header class="top">
-      <h1>Ventanilla</h1>
-      <p class="tagline">Spanish freelance paperwork, prepared by your agent and decided by you.</p>
-      <p id="webmcp-status" class="status" data-status="unknown">Checking WebMCP support…</p>
+      <div class="brand">
+        <h1>Ventanilla</h1>
+        <p class="tagline">Spanish freelance paperwork, prepared by your agent and decided by you.</p>
+      </div>
+      <div class="modes" role="group" aria-label="Mode">
+        <button type="button" data-set-mode="demo" aria-pressed="true">Demo</button>
+        <button type="button" data-set-mode="real" aria-pressed="false">Real</button>
+      </div>
     </header>
+
+    <p id="mode-strip" class="mode-strip" data-mode="demo">Loading…</p>
+    <p id="webmcp-status" class="status" data-status="unknown">Checking WebMCP support…</p>
 
     <main>
       <section class="panel">
         <h2>Your details</h2>
         <p class="note">Stored only in this browser. Nothing is sent to a server.</p>
-        <dl id="profile" class="profile"><dd>Loading…</dd></dl>
+        <div id="profile" data-mode="demo"><p class="empty">Loading…</p></div>
       </section>
 
       <section class="panel">
         <h2>What you owe, and when</h2>
-        <p class="note">Ask your agent: <em>"what do I have to file next?"</em></p>
+        <p class="note">Ask your agent: <em>“what do I have to file next?”</em></p>
         <div id="obligations" data-count="0">
           <p class="empty">Nothing here yet — on purpose.</p>
-          <p class="empty">This panel stays empty until something fills it, so when an agent
-          answers you can tell it called the tool instead of reading the screen.</p>
+          <p class="empty small">This panel stays empty until something fills it, so when an agent
+            answers you can tell it called the tool instead of reading the screen.</p>
           <button id="load-obligations" type="button">Show them myself</button>
         </div>
       </section>
     </main>
 
     <footer>
-      <p>Deadlines shift to the next working day when they land on a weekend. Public holidays are not applied — this is a demo, not filing software.</p>
+      <p>Deadlines shift to the next working day when they land on a weekend. Public holidays are
+        not applied. Nothing is ever submitted to the AEAT — filing on someone else’s behalf needs
+        registered <em>colaborador social</em> status.</p>
     </footer>
 
     <script>
       import { registerTools } from '../tools/register';
       import { isSupported } from '../lib/webmcp';
-      import { getProfile, today } from '../lib/db';
+      import { getMode, setMode, getProfile, saveProfile, today } from '../lib/db';
       import { upcomingObligations } from '../lib/obligations';
-      import { renderObligations } from '../lib/render';
+      import { renderObligations, renderProfile, renderModeStrip } from '../lib/render';
+      import type { Mode } from '../lib/mode';
+      import type { Profile } from '../lib/types';
 
       // Register before touching IndexedDB. Extensions that snapshot the tool list
-      // at page load will otherwise scan before an await on storage has resolved,
-      // and report zero tools on a page that has them.
+      // at page load would otherwise scan while storage was still opening and
+      // report a page with no tools on it.
       const statusEl = document.getElementById('webmcp-status')!;
       const names = await registerTools();
-      (window as any).__toolsRegisteredAt = Math.round(performance.now());
 
       if (isSupported()) {
         statusEl.dataset.status = 'ready';
@@ -59,73 +70,149 @@
         statusEl.textContent = 'WebMCP not detected. Open in the ChatGPT desktop browser, or Chrome 149+ with the WebMCP trial enabled. The page still works on its own.';
       }
 
-      const profile = await getProfile();
-      document.getElementById('profile')!.innerHTML = `
-        <dt>Name</dt><dd>${profile.name}</dd>
-        <dt>Tax ID</dt><dd>${profile.nif}</dd>
-        <dt>Trading since</dt><dd>${profile.startedTrading}</dd>
-        <dt>VAT regime</dt><dd>${profile.vatRegime}</dd>
-        <dt>Income tax</dt><dd>${profile.incomeTaxMethod === 'direct' ? 'direct assessment' : 'modules'}</dd>
-        <dt>Employees</dt><dd>${profile.hasEmployees ? 'yes' : 'no'}</dd>`;
+      let mode: Mode = await getMode();
+      let profile: Profile = await getProfile(mode);
 
-      // Deliberately NOT rendered on load. If the answer were already in the DOM, an
-      // agent could scrape it and look like it used the tool — which is the exact
-      // failure mode this project argues against. The panel fills only when the tool
-      // runs, or when a person without an agent asks for it here.
-      document.getElementById('load-obligations')?.addEventListener('click', () => {
-        renderObligations(upcomingObligations(profile, today(), 365));
-      });
+      function clearObligations() {
+        const host = document.getElementById('obligations')!;
+        host.dataset.count = '0';
+        host.innerHTML = `
+          <p class="empty">Nothing here yet — on purpose.</p>
+          <p class="empty small">This panel stays empty until something fills it, so when an agent
+            answers you can tell it called the tool instead of reading the screen.</p>
+          <button id="load-obligations" type="button">Show them myself</button>`;
+        wireLoadButton();
+      }
+
+      function wireLoadButton() {
+        document.getElementById('load-obligations')?.addEventListener('click', () => {
+          renderObligations(upcomingObligations(profile, today(), 365));
+        });
+      }
+
+      function wireProfileForm() {
+        const form = document.getElementById('profile-form') as HTMLFormElement | null;
+        form?.addEventListener('submit', async event => {
+          event.preventDefault();
+          const data = new FormData(form);
+          profile = {
+            id: mode,
+            name: String(data.get('name') ?? ''),
+            nif: String(data.get('nif') ?? ''),
+            startedTrading: String(data.get('startedTrading') ?? ''),
+            vatRegime: data.get('vatRegime') === 'exempt' ? 'exempt' : 'general',
+            incomeTaxMethod: data.get('incomeTaxMethod') === 'modules' ? 'modules' : 'direct',
+            hasEmployees: data.get('hasEmployees') === 'on',
+          };
+          await saveProfile(profile);
+          const saved = document.getElementById('profile-saved');
+          if (saved) { saved.hidden = false; setTimeout(() => { saved.hidden = true; }, 1600); }
+          clearObligations();
+        });
+      }
+
+      async function applyMode(next: Mode) {
+        mode = next;
+        await setMode(next);
+        profile = await getProfile(next);
+        renderModeStrip(next);
+        renderProfile(profile, next);
+        wireProfileForm();
+        // Switching modes must never leave the other mode's answers on screen.
+        clearObligations();
+      }
+
+      // Mode is a human decision. It is deliberately not reachable from a tool:
+      // an agent that could move someone into real mode could get them to sign
+      // something real while they believed they were trying a demo.
+      for (const button of document.querySelectorAll<HTMLButtonElement>('[data-set-mode]')) {
+        button.addEventListener('click', () => applyMode(button.dataset.setMode as Mode));
+      }
+
+      await applyMode(mode);
     </script>
 
     <style is:global>
       :root {
         --ink: #14171a; --muted: #5b6570; --line: #e3e7eb;
         --bg: #fbfcfd; --panel: #fff; --accent: #12507a; --warn: #a4400a;
+        --edge: #12507a;
       }
+      body[data-mode="real"] { --edge: #8a5a00; }
       * { box-sizing: border-box; }
       body {
         margin: 0; background: var(--bg); color: var(--ink);
         font: 16px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
       }
-      .top { padding: 2.5rem 1.5rem 1.5rem; max-width: 62rem; margin: 0 auto; }
-      h1 { margin: 0; font-size: 1.9rem; letter-spacing: -0.02em; }
-      .tagline { margin: .35rem 0 1rem; color: var(--muted); }
-      .status {
-        display: inline-block; margin: 0; padding: .45rem .7rem; border-radius: 6px;
-        font-size: .85rem; background: #eef2f5; color: var(--muted);
+      .top {
+        max-width: 64rem; margin: 0 auto; padding: 2rem 1.5rem 1rem;
+        display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-start; justify-content: space-between;
       }
-      .status[data-status="ready"] { background: #e8f4ec; color: #1d5c33; }
-      .status[data-status="unsupported"] { background: #fcf1e8; color: var(--warn); }
-      main { max-width: 62rem; margin: 0 auto; padding: 0 1.5rem 2rem;
-             display: grid; gap: 1.25rem; grid-template-columns: minmax(0,1fr); }
-      @media (min-width: 56rem) { main { grid-template-columns: 20rem minmax(0,1fr); align-items: start; } }
+      h1 { margin: 0; font-size: 1.75rem; letter-spacing: -0.025em; }
+      .tagline { margin: .3rem 0 0; color: var(--muted); font-size: .92rem; }
+      .modes { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: #fff; }
+      .modes button {
+        appearance: none; border: 0; background: transparent; font: inherit; font-size: .85rem;
+        padding: .45rem 1rem; cursor: pointer; color: var(--muted);
+      }
+      .modes button + button { border-left: 1px solid var(--line); }
+      .modes button[aria-pressed="true"] { background: var(--edge); color: #fff; font-weight: 500; }
+      .mode-strip, .status {
+        max-width: 64rem; margin: 0 auto .5rem; padding: .55rem 1rem;
+        font-size: .84rem; border-radius: 8px; border-left: 3px solid var(--edge);
+        background: #eef3f7; color: #23404f;
+      }
+      .mode-strip { width: calc(100% - 3rem); }
+      .mode-strip[data-mode="real"] { background: #fdf5e7; color: #6b4400; }
+      .status {
+        width: calc(100% - 3rem); background: #eef2f5; color: var(--muted);
+        border-left-color: var(--line); margin-bottom: 1.25rem;
+      }
+      .status[data-status="ready"] { background: #e9f4ec; color: #1d5c33; border-left-color: #2f7d4a; }
+      .status[data-status="unsupported"] { background: #fcf1e8; color: var(--warn); border-left-color: var(--warn); }
+      main {
+        max-width: 64rem; margin: 0 auto; padding: 0 1.5rem 2rem;
+        display: grid; gap: 1.25rem; grid-template-columns: minmax(0,1fr);
+      }
+      @media (min-width: 58rem) { main { grid-template-columns: 21rem minmax(0,1fr); align-items: start; } }
       .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 1.15rem 1.25rem; }
       .panel h2 { margin: 0 0 .2rem; font-size: 1rem; letter-spacing: -0.01em; }
       .note { margin: 0 0 .9rem; font-size: .82rem; color: var(--muted); }
-      .profile { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: .3rem .8rem; font-size: .88rem; }
-      .profile dt { color: var(--muted); }
-      .profile dd { margin: 0; }
+      .facts { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: .32rem .8rem; font-size: .88rem; }
+      .facts dt { color: var(--muted); }
+      .facts dd { margin: 0; }
+      .fields { display: grid; gap: .6rem; font-size: .85rem; }
+      .fields label { display: grid; gap: .2rem; color: var(--muted); }
+      .fields label.check { grid-template-columns: auto 1fr; align-items: center; gap: .45rem; }
+      .fields input, .fields select {
+        font: inherit; font-size: .88rem; padding: .4rem .5rem; color: var(--ink);
+        border: 1px solid var(--line); border-radius: 6px; background: #fff;
+      }
+      .fields input[type="checkbox"] { width: auto; justify-self: start; }
+      .fields button, #load-obligations {
+        margin-top: .3rem; padding: .45rem .9rem; font: inherit; font-size: .85rem;
+        background: var(--edge); color: #fff; border: 1px solid transparent;
+        border-radius: 6px; cursor: pointer; justify-self: start;
+      }
+      #load-obligations { background: #fff; color: var(--edge); border-color: var(--line); }
+      #load-obligations:hover { background: #f2f6f9; }
+      .saved { font-size: .8rem; color: #1d5c33; }
       #obligations { display: grid; gap: .7rem; transition: background-color .5s ease; border-radius: 8px; }
       #obligations.touched { background: #fff8dd; }
-      .obligation { border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 8px; padding: .8rem .95rem; }
+      .obligation { border: 1px solid var(--line); border-left: 3px solid var(--edge); border-radius: 8px; padding: .8rem .95rem; }
       .obligation.soon { border-left-color: var(--warn); }
       .obligation header { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; }
       .obligation h3 { margin: 0; font-size: .95rem; }
       .period { color: var(--muted); font-weight: 400; }
-      .days { font-size: .8rem; color: var(--muted); white-space: nowrap; }
-      .obligation .title { margin: .2rem 0 .5rem; font-size: .88rem; }
+      .days { font-size: .8rem; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+      .obligation .what { margin: .2rem 0 .5rem; font-size: .88rem; }
       .obligation dl { margin: 0 0 .5rem; display: grid; grid-template-columns: auto 1fr; gap: .15rem .8rem; font-size: .82rem; }
       .obligation dt { color: var(--muted); }
       .obligation dd { margin: 0; font-variant-numeric: tabular-nums; }
       .reason { margin: 0; font-size: .8rem; color: var(--muted); }
       .empty { margin: 0 0 .5rem; color: var(--muted); font-size: .88rem; }
-      #load-obligations {
-        margin-top: .4rem; padding: .45rem .85rem; font: inherit; font-size: .84rem;
-        background: #fff; color: var(--accent); border: 1px solid var(--line);
-        border-radius: 6px; cursor: pointer; transition: background-color .15s ease;
-      }
-      #load-obligations:hover { background: #f2f6f9; }
-      footer { max-width: 62rem; margin: 0 auto; padding: 0 1.5rem 3rem; color: var(--muted); font-size: .78rem; }
+      .empty.small { font-size: .8rem; }
+      footer { max-width: 64rem; margin: 0 auto; padding: 0 1.5rem 3rem; color: var(--muted); font-size: .78rem; }
     </style>
   </body>
 </html>
