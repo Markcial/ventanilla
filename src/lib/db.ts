@@ -12,6 +12,7 @@ import { openDB, type IDBPDatabase } from 'idb';
 import type { Profile, Invoice } from './types';
 import { type Mode, isMode } from './mode';
 import { DEMO_PROFILE, DEMO_INVOICES, EMPTY_REAL_PROFILE } from './sample-data';
+import { buildAltaRecord } from './verifactu';
 
 const DB_NAME = 'ventanilla';
 const VERSION = 2;
@@ -58,13 +59,32 @@ export async function setMode(mode: Mode): Promise<void> {
   await (await db()).put('settings', mode, 'mode');
 }
 
-/** Seed demo fixtures once, so demo mode is useful the moment it loads. */
+/**
+ * Seed demo fixtures once, so demo mode is useful the moment it loads.
+ *
+ * The sample invoices are fingerprinted and chained here rather than shipped as
+ * inert rows. An unchained sample would show a QR-less invoice next to a real
+ * one and quietly teach the wrong thing about how the mechanism works — and the
+ * first invoice an agent added would chain to nothing.
+ *
+ * Timestamps come from the issue date, not the clock, so the demo chain is
+ * identical in every browser that loads it.
+ */
 export async function ensureSeeded(): Promise<void> {
   const database = await db();
+
   if (!await database.get('profiles', 'demo')) {
     await database.put('profiles', DEMO_PROFILE);
-    for (const inv of DEMO_INVOICES) await database.put('invoices', inv);
+
+    let previousHash = '';
+    for (const invoice of DEMO_INVOICES) {
+      const record = await buildAltaRecord(
+        invoice, DEMO_PROFILE, previousHash, `${invoice.issuedOn}T09:00:00+02:00`);
+      await database.put('invoices', { ...invoice, hash: record.hash, previousHash });
+      previousHash = record.hash;
+    }
   }
+
   if (!await database.get('profiles', 'real')) {
     await database.put('profiles', EMPTY_REAL_PROFILE);
   }

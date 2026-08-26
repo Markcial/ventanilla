@@ -29,6 +29,12 @@
       </section>
 
       <section class="panel">
+        <h2>Invoices</h2>
+        <p class="note">Ask your agent: <em>“invoice Astillero Ribera 800 euros plus VAT”</em></p>
+        <div id="invoices" data-count="0"><p class="empty">No invoices yet.</p></div>
+      </section>
+
+      <section class="panel">
         <h2>What you owe, and when</h2>
         <p class="note">Ask your agent: <em>“what do I have to file next?”</em></p>
         <div id="obligations" data-count="0">
@@ -51,7 +57,8 @@
       import { isSupported } from '../lib/webmcp';
       import { getMode, setMode, getProfile, saveProfile, today } from '../lib/db';
       import { upcomingObligations } from '../lib/obligations';
-      import { renderObligations, renderProfile, renderModeStrip } from '../lib/render';
+      import { renderObligations, renderProfile, renderModeStrip, renderInvoices } from '../lib/render';
+      import { listInvoices } from '../lib/db';
       import type { Mode } from '../lib/mode';
       import type { Profile } from '../lib/types';
 
@@ -117,6 +124,9 @@
         profile = await getProfile(next);
         renderModeStrip(next);
         renderProfile(profile, next);
+        // Invoices already exist as records, so showing them is not pre-rendering a
+        // tool's answer — unlike the obligations panel, which must stay empty.
+        await renderInvoices(await listInvoices(next), profile.nif);
         wireProfileForm();
         // Switching modes must never leave the other mode's answers on screen.
         clearObligations();
@@ -210,6 +220,30 @@
       .obligation dt { color: var(--muted); }
       .obligation dd { margin: 0; font-variant-numeric: tabular-nums; }
       .reason { margin: 0; font-size: .8rem; color: var(--muted); }
+      #invoices { display: grid; gap: .7rem; transition: background-color .5s ease; border-radius: 8px; }
+      #invoices.touched { background: #fff8dd; }
+      .invoice {
+        display: flex; gap: 1rem; align-items: flex-start; justify-content: space-between;
+        border: 1px solid var(--line); border-left: 3px solid var(--edge);
+        border-radius: 8px; padding: .8rem .95rem;
+      }
+      .invoice.fresh { border-left-color: #2f7d4a; background: #fbfefc; }
+      .invoice-body { min-width: 0; flex: 1; }
+      .invoice header { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; }
+      .invoice h3 { margin: 0; font-size: .95rem; font-variant-numeric: tabular-nums; }
+      .invoice .total { font-size: .95rem; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+      .invoice .client { margin: .15rem 0 .5rem; font-size: .86rem; }
+      .invoice .nif { color: var(--muted); font-size: .8rem; }
+      .invoice dl { margin: 0 0 .5rem; display: grid; grid-template-columns: auto 1fr; gap: .12rem .8rem; font-size: .81rem; }
+      .invoice dt { color: var(--muted); }
+      .invoice dd { margin: 0; font-variant-numeric: tabular-nums; }
+      .hash { margin: .15rem 0 0; font-size: .72rem; display: grid; gap: .05rem; }
+      .hash span { color: var(--muted); }
+      .hash code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .7rem; word-break: break-all; color: #2c3a44; }
+      .hash code.none { color: var(--muted); font-style: italic; word-break: normal; }
+      .qr { margin: 0; text-align: center; flex: 0 0 auto; }
+      .qr svg { display: block; width: 90px; height: 90px; }
+      .qr figcaption { font-size: .66rem; color: var(--muted); margin-top: .2rem; }
       .empty { margin: 0 0 .5rem; color: var(--muted); font-size: .88rem; }
       .empty.small { font-size: .8rem; }
       footer { max-width: 64rem; margin: 0 auto; padding: 0 1.5rem 3rem; color: var(--muted); font-size: .78rem; }

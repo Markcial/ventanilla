@@ -166,6 +166,87 @@ try {
       await switchMode(c, 'demo');
     })(client);
 
+    await check('the demo chain is seeded already fingerprinted', async c => {
+      // Inert sample rows would sit next to real records showing no QR, and the
+      // first invoice an agent added would chain to nothing.
+      await switchMode(c, 'demo');
+      const withHash = Number(await c.evaluate(
+        `[...document.querySelectorAll('.invoice')].filter(e => e.querySelector('.qr svg')).length`));
+      assert(withHash >= 6, `only ${withHash} seeded invoices carry a fingerprint and QR`);
+    })(client);
+
+    await check('register_invoice is registered', async c => {
+      assert(c.listTools().some(t => t.name === 'register_invoice'),
+        `tools were [${c.listTools().map(t => t.name)}]`);
+    })(client);
+
+    await check('registering an invoice produces a fingerprint and a QR', async c => {
+      await switchMode(c, 'demo');
+      const body = c.text(await c.invoke('register_invoice', {
+        clientName: 'Astillero Ribera SL', clientNif: 'B12345674',
+        baseEuros: 800, vatRate: 21, issuedOn: '2026-09-25',
+      }));
+      assert(/Fingerprint: [0-9A-F]{64}/.test(body), `no 64-char uppercase hex fingerprint:\n${body}`);
+      assert(/Total: 968\.00 EUR/.test(body), `800 + 21% should be 968.00:\n${body}`);
+      assert(/prewww2\.aeat\.es/.test(body), `QR did not point at the AEAT test endpoint:\n${body}`);
+      assert(/never submits/i.test(body), `result did not state that nothing is submitted:\n${body}`);
+    })(client);
+
+    await check('each invoice chains to the fingerprint of the one before it', async c => {
+      // The property the whole Verifactu mechanism rests on. If this stops holding,
+      // the records are decorative.
+      const first = c.text(await c.invoke('register_invoice', {
+        clientName: 'Chain One', clientNif: 'B11111111', baseEuros: 100, issuedOn: '2026-09-26',
+      }));
+      const firstHash = /Fingerprint: ([0-9A-F]{64})/.exec(first)?.[1];
+      assert(firstHash, `no fingerprint in first result:\n${first}`);
+
+      const second = c.text(await c.invoke('register_invoice', {
+        clientName: 'Chain Two', clientNif: 'B22222222', baseEuros: 200, issuedOn: '2026-09-27',
+      }));
+      const chainedTo = /Chained to: ([0-9A-F]{64})/.exec(second)?.[1];
+      assert(chainedTo === firstHash,
+        `second invoice chained to ${chainedTo}, but the first was ${firstHash}`);
+    })(client);
+
+    await check('registering an invoice puts it on the page with its QR', async c => {
+      const before = Number(await c.evaluate(`document.getElementById('invoices').dataset.count`));
+      await c.invoke('register_invoice', {
+        clientName: 'Visible SL', clientNif: 'B33333333', baseEuros: 50, issuedOn: '2026-09-28',
+      });
+      const after = Number(await c.evaluate(`document.getElementById('invoices').dataset.count`));
+      assert(after === before + 1, `invoice count went ${before} -> ${after}`);
+      const qrCount = Number(await c.evaluate(`document.querySelectorAll('.invoice .qr svg').length`));
+      assert(qrCount > 0, 'no QR was rendered for any invoice');
+      const shown = await c.evaluate(
+        `[...document.querySelectorAll('.invoice .client')].map(e => e.textContent).join('|')`);
+      assert(shown.includes('Visible SL'), `new invoice not on screen: "${shown}"`);
+    })(client);
+
+    await check('an invalid VAT rate is refused rather than guessed', async c => {
+      const body = c.text(await c.invoke('register_invoice', {
+        clientName: 'Bad Rate', clientNif: 'B44444444', baseEuros: 100, vatRate: 7,
+      }));
+      assert(/not a Spanish VAT rate/i.test(body), `7% was not refused:\n${body}`);
+    })(client);
+
+    await check('real mode will not invent an identity to put on an invoice', async c => {
+      await switchMode(c, 'real');
+      const body = c.text(await c.invoke('register_invoice', {
+        clientName: 'Someone', clientNif: 'B55555555', baseEuros: 100,
+      }));
+      assert(/cannot issue an invoice/i.test(body), `it issued one anyway:\n${body}`);
+      assert(!/Fingerprint: [0-9A-F]{64}/.test(body), `it produced a record despite no identity:\n${body}`);
+      await switchMode(c, 'demo');
+    })(client);
+
+    await check('demo invoices never appear in real mode', async c => {
+      await switchMode(c, 'real');
+      const count = Number(await c.evaluate(`document.getElementById('invoices').dataset.count`));
+      assert(count === 0, `${count} demo invoices leaked into real mode`);
+      await switchMode(c, 'demo');
+    })(client);
+
     await check('unknown tool fails loudly', async c => {
       let threw = false;
       try { await c.invoke('does_not_exist'); } catch { threw = true; }
