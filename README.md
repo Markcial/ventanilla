@@ -67,6 +67,7 @@ real even by accident.
 | Tool | What it needs to know about you | What you get |
 |---|---|---|
 | `list_obligations` | registration date, VAT regime, income tax method | every form still due, with deadlines, rendered on the page |
+| `register_invoice` | the fingerprint of your last invoice, your tax ID, your series | a numbered invoice with its Verifactu record, chained fingerprint and QR |
 | `ping` | — | health check used by the test suite |
 
 ## What is real and what is not
@@ -74,6 +75,9 @@ real even by accident.
 Being precise about this matters more than looking finished.
 
 **Real**
+- The Verifactu records. Fingerprints and chaining follow the AEAT specification,
+  and the worked examples from both official documents — the three hash vectors
+  and the QR example — are used verbatim as tests. Anyone can check the numbers.
 - The filing calendar. Quarterly deadlines, the shift to the next working day
   when a deadline lands on a weekend, and the earlier cut-off for filing by
   direct debit are all computed, not hardcoded per year.
@@ -83,6 +87,10 @@ Being precise about this matters more than looking finished.
 - Public holidays are not applied — only weekends. Real filing software needs the
   full national and regional holiday calendar.
 - The profile is sample data until you edit it.
+
+**Pointed somewhere safe on purpose**
+- The QR carries the AEAT *external test* endpoint. Aiming it at production would
+  tell whoever scans it that the invoice is registered with the tax agency.
 
 **Not attempted**
 - No connection to AEAT, Cl@ve, DNIe, DEHú or Seguridad Social. Those are closed
