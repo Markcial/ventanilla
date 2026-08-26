@@ -143,6 +143,16 @@ export async function withWebMCP(url, fn) {
         return output?.content?.find(c => c.type === 'text')?.text ?? JSON.stringify(output);
       },
 
+      /** Full-page PNG, base64. Used to eyeball what the human would see. */
+      async screenshot() {
+        const { contentSize } = await send('Page.getLayoutMetrics');
+        await send('Emulation.setDeviceMetricsOverride', {
+          width: 1100, height: Math.ceil(contentSize.height), deviceScaleFactor: 2, mobile: false,
+        });
+        const { data } = await send('Page.captureScreenshot', { format: 'png' });
+        return data;
+      },
+
       /** Run JS in the page — for asserting the UI actually changed. */
       async evaluate(expression) {
         const r = await send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true });

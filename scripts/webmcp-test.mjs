@@ -56,6 +56,35 @@ try {
       assert(!Number.isNaN(Date.parse(body.slice(5))), `no parseable timestamp in "${body}"`);
     })(client);
 
+    await check('list_obligations is registered', async c => {
+      assert(c.listTools().some(t => t.name === 'list_obligations'),
+        `tools were [${c.listTools().map(t => t.name)}]`);
+    })(client);
+
+    await check('list_obligations returns real deadlines', async c => {
+      const body = c.text(await c.invoke('list_obligations', { withinDays: 365 }));
+      assert(/modelo 303/.test(body), `no modelo 303 in output:\n${body}`);
+      assert(/\d{4}-\d{2}-\d{2}/.test(body), `no ISO date in output:\n${body}`);
+      assert(/direct debit/.test(body), `direct debit deadline missing:\n${body}`);
+    })(client);
+
+    await check('list_obligations mutates the page the human is looking at', async c => {
+      await c.evaluate(`document.getElementById('obligations').dataset.count = '0'`);
+      await c.invoke('list_obligations', { withinDays: 365 });
+      const count = Number(await c.evaluate(`document.getElementById('obligations').dataset.count`));
+      assert(count > 0, `obligations panel still empty after the tool ran (count=${count})`);
+      const forms = await c.evaluate(
+        `[...document.querySelectorAll('.obligation')].map(e => e.dataset.form).join(',')`);
+      assert(forms.includes('modelo 303'), `rendered forms were "${forms}"`);
+    })(client);
+
+    await check('withinDays actually narrows the result', async c => {
+      const wide = c.text(await c.invoke('list_obligations', { withinDays: 365 }));
+      const narrow = c.text(await c.invoke('list_obligations', { withinDays: 30 }));
+      assert(wide !== narrow, 'wide and narrow windows returned identical output');
+      assert(/Nothing due within 30 days/.test(narrow), `unexpected narrow output:\n${narrow}`);
+    })(client);
+
     await check('unknown tool fails loudly', async c => {
       let threw = false;
       try { await c.invoke('does_not_exist'); } catch { threw = true; }
