@@ -75,7 +75,7 @@ export async function registerInvoice(
 ): Promise<RegisteredInvoice> {
   const record = await buildAltaRecord(invoice, profile, previousHash, generatedAt);
   return {
-    invoice: { ...invoice, hash: record.hash, previousHash: record.previousHash },
+    invoice: { ...invoice, hash: record.hash, previousHash: record.previousHash, generatedAt },
     record,
     qrUrl: buildQrUrl({
       nif: profile.nif,

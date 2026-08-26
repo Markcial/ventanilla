@@ -10,7 +10,8 @@
     "build": "astro build",
     "preview": "astro preview --port 4321",
     "test": "vitest run",
-    "test:webmcp": "node scripts/webmcp-test.mjs"
+    "test:webmcp": "node scripts/webmcp-test.mjs",
+    "test:schema": "node scripts/validate-submission.mjs"
   },
   "dependencies": {
     "astro": "^5.0.0",

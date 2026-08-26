@@ -32,6 +32,14 @@ export interface Invoice {
   /** Verifactu chain fields, filled in by lib/verifactu.ts. */
   hash?: string;
   previousHash?: string;
+  /**
+   * The exact instant that went into the fingerprint.
+   *
+   * Stored rather than recomputed: the submission envelope has to carry the same
+   * value, and a fresh timestamp would produce a record whose Huella does not
+   * match its own contents — which the AEAT marks as "aceptado con errores".
+   */
+  generatedAt?: string;
 }
 
 export interface Obligation {

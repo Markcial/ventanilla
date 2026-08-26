@@ -68,6 +68,7 @@ real even by accident.
 |---|---|---|
 | `list_obligations` | registration date, VAT regime, income tax method | every form still due, with deadlines, rendered on the page |
 | `register_invoice` | the fingerprint of your last invoice, your tax ID, your series | a numbered invoice with its Verifactu record, chained fingerprint and QR |
+| `export_submission` | the invoice's stored fingerprint and generation time | the SOAP request the AEAT expects, as a file you send yourself |
 | `ping` | — | health check used by the test suite |
 
 ## What is real and what is not
@@ -97,6 +98,30 @@ Being precise about this matters more than looking finished.
   to private developers, or require being a registered *colaborador social*.
   Claiming otherwise would be a lie a judge could check.
 
+## Why it prepares but never sends
+
+Not a policy. A browser cannot reach the tax agency, and this is checkable in
+half a minute:
+
+```
+$ curl -s -i -X OPTIONS https://prewww1.aeat.es/wlpl/TIKE-CONT/ws/SistemaFacturacion/VerifactuSOAP \
+    -H 'Origin: https://example.com' -H 'Access-Control-Request-Method: POST'
+HTTP/2 302
+location: https://sede.agenciatributaria.gob.es/Sede/errores/erro4033.html
+```
+
+No `Access-Control-Allow-*` headers at all, and the endpoint additionally
+requires mutual TLS with a client certificate that `fetch()` has no way to
+present. Either one alone would be enough.
+
+Which is the argument this project makes, handed to us by the platform: the tax
+agency is reachable only by a person holding a certificate. So the agent takes
+the work as far as it goes, and the person performs the act that has
+consequences.
+
+`export_submission` builds the envelope and gives it to you with the exact curl
+command to send it under your own certificate.
+
 ## Running it
 
 ```bash
@@ -121,6 +146,19 @@ agent would, invoke them, and assert on the output an agent would receive:
 ```bash
 npm run build && npm run test:webmcp
 ```
+
+And the submissions are validated against the AEAT's own published schemas —
+fetched from the tax agency at run time rather than vendored, so the check runs
+against what they publish today:
+
+```bash
+npm run test:schema
+```
+
+That one earned its place immediately: it caught an envelope in which every
+value was correct and the element order was not. `DetalleType` requires
+`CalificacionOperacion` or `OperacionExenta` before `TipoImpositivo`, and a
+sequence in the wrong order is invalid however right the data is.
 
 That second suite is possible because Chrome 151 ships an undocumented CDP
 `WebMCP` domain — `enable`, `invokeTool({frameId, toolName, input})`, and

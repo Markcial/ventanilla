@@ -33,6 +33,9 @@
         <button type="button" role="tab" data-tab="deadlines" aria-selected="false" aria-controls="panel-deadlines" tabindex="-1">
           Deadlines
         </button>
+        <button type="button" role="tab" data-tab="submission" aria-selected="false" aria-controls="panel-submission" tabindex="-1">
+          Submission
+        </button>
         <button type="button" role="tab" data-tab="profile" aria-selected="false" aria-controls="panel-profile" tabindex="-1">
           Profile
         </button>
@@ -52,6 +55,16 @@
           <p class="empty small">This stays empty until something fills it, so when an agent answers
             you can tell it called the tool instead of reading the screen.</p>
           <button id="load-obligations" type="button">Show them myself</button>
+        </div>
+      </section>
+
+      <section id="panel-submission" data-panel="submission" role="tabpanel" hidden>
+        <p class="prompt">Say to your agent: <em>“prepare the AEAT submission for that invoice”</em></p>
+        <div id="submission">
+          <p class="empty">Nothing prepared yet.</p>
+          <p class="empty small">Ventanilla builds the SOAP request the tax agency expects and gives
+            it to you. It never sends it — and no web page could: the endpoint answers no CORS
+            headers and requires a client certificate.</p>
         </div>
       </section>
 
@@ -335,6 +348,29 @@
       .obligation dd strong { font-weight: 500; color: var(--seal); }
       .obligation.soon dd strong { color: var(--flag); }
       .reason { margin: 0; font-size: .78rem; color: var(--ink-soft); max-width: 46rem; }
+
+      .submission-head {
+        display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-start;
+        justify-content: space-between; margin-bottom: .8rem;
+      }
+      .submission-head h3 { margin: 0; font: 500 .95rem var(--mono); }
+      .endpoint { margin: .15rem 0 0; font: 400 .72rem var(--mono); color: var(--ink-faint); word-break: break-all; }
+      #download-submission {
+        padding: .48rem 1rem; font: 500 .85rem var(--sans); border-radius: 7px;
+        background: var(--seal); color: #fff; border: 1px solid transparent; cursor: pointer;
+        white-space: nowrap;
+      }
+      .warn {
+        margin: 0 0 .9rem; padding: .6rem .8rem; border-radius: 7px;
+        background: #fbeee9; color: #7d2a13; font-size: .8rem; max-width: 46rem;
+      }
+      #submission h4 { margin: 1.2rem 0 .4rem; font-size: .85rem; }
+      .envelope, .howto {
+        margin: 0; padding: .85rem 1rem; background: var(--card);
+        border: 1px solid var(--rule); border-radius: 8px;
+        overflow-x: auto; max-height: 26rem; overflow-y: auto;
+      }
+      .envelope code, .howto code { font: 400 .7rem/1.55 var(--mono); color: var(--ink); white-space: pre; }
 
       .facts, .fields { max-width: 26rem; }
       .facts { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: .35rem 1rem; font-size: .88rem; }

@@ -279,10 +279,56 @@ try {
 
     await check('tabs are reachable by keyboard', async c => {
       await c.evaluate(`document.querySelector('[data-tab="invoices"]').focus()`);
-      const roving = await c.evaluate(
-        `[...document.querySelectorAll('[data-tab]')].map(t => t.tabIndex).join(',')`);
-      assert(/^(0,-1,-1|-1,0,-1|-1,-1,0)$/.test(roving),
-        `tab stops should follow the selected tab, got "${roving}"`);
+      // Exactly one tab stop, on the selected tab, however many tabs there are.
+      const stops = (await c.evaluate(
+        `[...document.querySelectorAll('[data-tab]')].map(t => t.tabIndex).join(',')`)).split(',');
+      assert(stops.filter(v => v === '0').length === 1 && stops.every(v => v === '0' || v === '-1'),
+        `tab stops should be a single 0 among -1s, got "${stops.join(',')}"`);
+      const selectedIsStop = await c.evaluate(
+        `document.querySelector('[data-tab][aria-selected="true"]').tabIndex === 0`);
+      assert(selectedIsStop, 'the tab stop is not on the selected tab');
+    })(client);
+
+    await check('export_submission is registered', async c => {
+      assert(c.listTools().some(t => t.name === 'export_submission'),
+        `tools were [${c.listTools().map(t => t.name)}]`);
+    })(client);
+
+    await check('a prepared submission lands on screen with a download', async c => {
+      await switchMode(c, 'demo');
+      const body = c.text(await c.invoke('export_submission', { invoiceId: 'DEMO-2026-001' }));
+      assert(/prewww1\.aeat\.es/.test(body), `no AEAT test endpoint in the result:\n${body}`);
+      const shown = await c.evaluate(`document.querySelector('#submission .envelope code')?.textContent ?? ''`);
+      assert(shown.includes('RegFactuSistemaFacturacion'), 'no envelope rendered');
+      const button = await c.evaluate(`!!document.getElementById('download-submission')`);
+      assert(button, 'no download button offered');
+      const tab = await c.evaluate(
+        `document.querySelector('[data-tab="submission"]').getAttribute('aria-selected')`);
+      assert(tab === 'true', 'the submission tab was not brought forward');
+    })(client);
+
+    await check('the envelope carries the stored generation time, not a fresh one', async c => {
+      // A new timestamp would produce a record whose Huella does not match its own
+      // contents, which the AEAT marks as accepted with errors.
+      await c.invoke('export_submission', { invoiceId: 'DEMO-2026-001' });
+      const envelope = await c.evaluate(`document.querySelector('#submission .envelope code').textContent`);
+      assert(/<sf:FechaHoraHusoGenRegistro>2026-07-03T09:00:00\+02:00<\/sf:FechaHoraHusoGenRegistro>/.test(envelope),
+        `generation time was not the stored one:\n${/FechaHoraHusoGenRegistro>[^<]*/.exec(envelope)?.[0]}`);
+    })(client);
+
+    await check('a zero-VAT invoice is not classified by guesswork', async c => {
+      // Exempt and outside-the-scope are different things to the tax agency and
+      // cannot be told apart from the amount.
+      const body = c.text(await c.invoke('export_submission', { invoiceId: 'DEMO-2026-005' }));
+      assert(/E1, E2/.test(body) && /N1, N2/.test(body), `it did not ask which applies:\n${body}`);
+      const withCode = c.text(await c.invoke('export_submission', {
+        invoiceId: 'DEMO-2026-005', vatTreatment: 'E1' }));
+      assert(/on screen/.test(withCode), `it refused even with a code given:\n${withCode}`);
+    })(client);
+
+    await check('every submission result says it is not sent', async c => {
+      const body = c.text(await c.invoke('export_submission', { invoiceId: 'DEMO-2026-002' }));
+      assert(/cannot send/i.test(body), `the result did not state the boundary:\n${body}`);
     })(client);
 
     await check('unknown tool fails loudly', async c => {

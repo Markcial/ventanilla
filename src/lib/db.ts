@@ -15,7 +15,7 @@ import { DEMO_PROFILE, DEMO_INVOICES, EMPTY_REAL_PROFILE } from './sample-data';
 import { buildAltaRecord } from './verifactu';
 
 const DB_NAME = 'ventanilla';
-const VERSION = 2;
+const VERSION = 3;
 
 let dbPromise: Promise<IDBPDatabase> | null = null;
 
@@ -28,11 +28,12 @@ function db() {
         invoices.createIndex('mode', 'mode');
         database.createObjectStore('settings');
       }
-      if (oldVersion === 1) {
-        // v1 stored a single unscoped profile. There is no meaningful way to know
-        // whether it was demo or real data, and guessing wrong would mix them, so
-        // v1 stores are dropped and recreated.
-        for (const name of ['profile', 'invoices']) {
+      if (oldVersion > 0 && oldVersion < 3) {
+        // v1 stored a single unscoped profile, and neither v1 nor v2 kept the
+        // timestamp that went into each fingerprint — without it a record cannot be
+        // reproduced as a valid submission. Both are dropped rather than migrated:
+        // there is no way to recover a timestamp that was never written down.
+        for (const name of ['profile', 'profiles', 'invoices']) {
           if (database.objectStoreNames.contains(name)) database.deleteObjectStore(name);
         }
         database.createObjectStore('profiles', { keyPath: 'id' });
@@ -78,9 +79,9 @@ export async function ensureSeeded(): Promise<void> {
 
     let previousHash = '';
     for (const invoice of DEMO_INVOICES) {
-      const record = await buildAltaRecord(
-        invoice, DEMO_PROFILE, previousHash, `${invoice.issuedOn}T09:00:00+02:00`);
-      await database.put('invoices', { ...invoice, hash: record.hash, previousHash });
+      const generatedAt = `${invoice.issuedOn}T09:00:00+02:00`;
+      const record = await buildAltaRecord(invoice, DEMO_PROFILE, previousHash, generatedAt);
+      await database.put('invoices', { ...invoice, hash: record.hash, previousHash, generatedAt });
       previousHash = record.hash;
     }
   }

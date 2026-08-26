@@ -148,6 +148,53 @@ export async function renderInvoices(invoices: Invoice[], issuerNif: string, hig
   host.innerHTML = cards.join('');
 }
 
+export interface SubmissionView {
+  invoiceId: string;
+  filename: string;
+  envelope: string;
+  endpoint: string;
+  instructions: string;
+}
+
+/**
+ * Show the prepared submission, and let the person take the file.
+ *
+ * The envelope is shown in full rather than summarised. It is the artifact being
+ * handed over, and a person who cannot read it cannot check it before sending it
+ * to their tax agency under their own certificate.
+ */
+export function renderSubmission(view: SubmissionView): void {
+  const host = document.getElementById('submission');
+  if (!host) return;
+
+  host.dataset.invoice = view.invoiceId;
+  host.innerHTML = `
+    <div class="submission-head">
+      <div>
+        <h3>${escape(view.invoiceId)}</h3>
+        <p class="endpoint">${escape(view.endpoint)}</p>
+      </div>
+      <button id="download-submission" type="button">Download ${escape(view.filename)}</button>
+    </div>
+    <p class="warn">Ventanilla cannot send this. The endpoint answers no CORS headers and wants a
+      client certificate, which a web page cannot present. You send it, with your certificate.</p>
+    <pre class="envelope"><code>${escape(view.envelope)}</code></pre>
+    <h4>Sending it yourself</h4>
+    <pre class="howto"><code>${escape(view.instructions)}</code></pre>`;
+
+  document.getElementById('download-submission')?.addEventListener('click', () => {
+    const blob = new Blob([view.envelope], { type: 'application/xml' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = view.filename;
+    link.click();
+    URL.revokeObjectURL(url);
+  });
+
+  focusTab('submission');
+}
+
 /**
  * Bring a tab forward.
  *
