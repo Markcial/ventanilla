@@ -76,13 +76,15 @@ try {
       assert(/direct debit/.test(body), `direct debit deadline missing:\n${body}`);
     })(client);
 
-    await check('tools register before the load event', async c => {
-      const at = Number(await c.evaluate(`window.__toolsRegisteredAt ?? -1`));
-      const loadEnd = Number(await c.evaluate(
-        `performance.getEntriesByType('navigation')[0].loadEventEnd | 0`));
-      assert(at >= 0, 'registration was never instrumented');
-      assert(at <= loadEnd + 50,
-        `tools registered at ${at}ms, load ended at ${loadEnd}ms — too late for an extension that scans at load`);
+    await check('tools are registered by the time the page finishes loading', async c => {
+      // An inspector extension that snapshots the tool list at load must find them.
+      // A third-party one reported "0 tools" on this page and fell back to reading
+      // the DOM, so this margin is a real requirement, not a micro-optimisation.
+      const margin = c.loadRaceMargin();
+      assert(margin !== null, 'no toolsAdded event was ever seen');
+      assert(margin >= 0,
+        `tools appeared ${Math.abs(margin).toFixed(1)}ms after the load event fired`);
+      console.log(`       (tools ready ${margin === Infinity ? 'before' : margin.toFixed(1) + 'ms before'} load)`);
     })(client);
 
     await check('list_obligations mutates the page the human is looking at', async c => {

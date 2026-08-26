@@ -73,6 +73,9 @@ export async function withWebMCP(url, fn) {
     let seq = 0;
     const pending = new Map();
     const tools = [];
+    // Ground truth for "would an inspector that scans at load see our tools?".
+    // Measured from the browser's own events, not from instrumentation in the page.
+    const marks = { firstToolsAdded: null, loadFired: null };
     const responses = new Map();
     const waiters = new Map();
 
@@ -84,7 +87,11 @@ export async function withWebMCP(url, fn) {
         m.error ? reject(new Error(`${m.error.message} (${JSON.stringify(m.error.data ?? {})})`)) : resolve(m.result);
         return;
       }
-      if (m.method === 'WebMCP.toolsAdded') tools.push(...m.params.tools);
+      if (m.method === 'WebMCP.toolsAdded') {
+        marks.firstToolsAdded ??= performance.now();
+        tools.push(...m.params.tools);
+      }
+      if (m.method === 'Page.loadEventFired') marks.loadFired ??= performance.now();
       if (m.method === 'WebMCP.toolsRemoved') {
         for (const rm of m.params.tools) {
           const i = tools.findIndex(t => t.name === rm.name);
@@ -113,6 +120,17 @@ export async function withWebMCP(url, fn) {
     await sleep(1500);
 
     const client = {
+      /**
+       * Milliseconds by which the first tool registration beat the load event.
+       * Negative means tools appeared after load — the window in which an
+       * inspector that snapshots at load reports an empty page.
+       */
+      loadRaceMargin() {
+        if (marks.firstToolsAdded === null) return null;
+        if (marks.loadFired === null) return Infinity;
+        return marks.loadFired - marks.firstToolsAdded;
+      },
+
       /** Tools the page has registered, as the agent would see them. */
       listTools: () => tools.map(t => ({
         name: t.name,

@@ -50,16 +50,27 @@ export function text(body: string): ToolResult {
 /**
  * Register tools, skipping gracefully when WebMCP is unavailable so the page
  * still works as an ordinary web app.
+ *
+ * Every call is issued before the first await, on purpose. Awaiting each one in
+ * turn meant only the first tool was requested during the deferred module's
+ * synchronous run; the rest landed after the load event, and inspector extensions
+ * that snapshot the tool list at load reported a page with no tools on it.
  */
 export async function registerAll(tools: ToolDefinition<any>[]): Promise<string[]> {
   if (!isSupported()) return [];
+
+  const issued = tools.map(tool => ({
+    name: tool.name,
+    promise: document.modelContext!.registerTool(tool),
+  }));
+
   const registered: string[] = [];
-  for (const tool of tools) {
+  for (const { name, promise } of issued) {
     try {
-      await document.modelContext!.registerTool(tool);
-      registered.push(tool.name);
+      await promise;
+      registered.push(name);
     } catch (err) {
-      console.error(`[webmcp] failed to register "${tool.name}":`, err);
+      console.error(`[webmcp] failed to register "${name}":`, err);
     }
   }
   return registered;
