@@ -1,0 +1,17 @@
+{
+  "name": "ventanilla",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "description": "Agent-native administrative paperwork for Spanish freelancers. WebMCP Challenge 2026.",
+  "license": "MIT",
+  "scripts": {
+    "dev": "astro dev --port 4321",
+    "build": "astro build",
+    "preview": "astro preview --port 4321",
+    "test": "vitest run",
+    "test:webmcp": "node scripts/webmcp-test.mjs"
+  },
+  "dependencies": { "astro": "^5.0.0", "idb": "^8.0.0" },
+  "devDependencies": { "vitest": "^2.1.0", "typescript": "^5.6.0" }
+}
