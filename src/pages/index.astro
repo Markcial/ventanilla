@@ -23,7 +23,12 @@
       <section class="panel">
         <h2>What you owe, and when</h2>
         <p class="note">Ask your agent: <em>"what do I have to file next?"</em></p>
-        <div id="obligations" data-count="0"><p class="empty">Nothing loaded yet.</p></div>
+        <div id="obligations" data-count="0">
+          <p class="empty">Nothing here yet — on purpose.</p>
+          <p class="empty">This panel stays empty until something fills it, so when an agent
+          answers you can tell it called the tool instead of reading the screen.</p>
+          <button id="load-obligations" type="button">Show them myself</button>
+        </div>
       </section>
     </main>
 
@@ -38,8 +43,12 @@
       import { upcomingObligations } from '../lib/obligations';
       import { renderObligations } from '../lib/render';
 
+      // Register before touching IndexedDB. Extensions that snapshot the tool list
+      // at page load will otherwise scan before an await on storage has resolved,
+      // and report zero tools on a page that has them.
       const statusEl = document.getElementById('webmcp-status')!;
       const names = await registerTools();
+      (window as any).__toolsRegisteredAt = Math.round(performance.now());
 
       if (isSupported()) {
         statusEl.dataset.status = 'ready';
@@ -59,7 +68,13 @@
         <dt>Income tax</dt><dd>${profile.incomeTaxMethod === 'direct' ? 'direct assessment' : 'modules'}</dd>
         <dt>Employees</dt><dd>${profile.hasEmployees ? 'yes' : 'no'}</dd>`;
 
-      renderObligations(upcomingObligations(profile, today(), 365));
+      // Deliberately NOT rendered on load. If the answer were already in the DOM, an
+      // agent could scrape it and look like it used the tool — which is the exact
+      // failure mode this project argues against. The panel fills only when the tool
+      // runs, or when a person without an agent asks for it here.
+      document.getElementById('load-obligations')?.addEventListener('click', () => {
+        renderObligations(upcomingObligations(profile, today(), 365));
+      });
     </script>
 
     <style is:global>
@@ -103,7 +118,13 @@
       .obligation dt { color: var(--muted); }
       .obligation dd { margin: 0; font-variant-numeric: tabular-nums; }
       .reason { margin: 0; font-size: .8rem; color: var(--muted); }
-      .empty { margin: 0; color: var(--muted); font-size: .88rem; }
+      .empty { margin: 0 0 .5rem; color: var(--muted); font-size: .88rem; }
+      #load-obligations {
+        margin-top: .4rem; padding: .45rem .85rem; font: inherit; font-size: .84rem;
+        background: #fff; color: var(--accent); border: 1px solid var(--line);
+        border-radius: 6px; cursor: pointer; transition: background-color .15s ease;
+      }
+      #load-obligations:hover { background: #f2f6f9; }
       footer { max-width: 62rem; margin: 0 auto; padding: 0 1.5rem 3rem; color: var(--muted); font-size: .78rem; }
     </style>
   </body>

@@ -32,6 +32,14 @@ console.log('WebMCP integration tests\n');
 
 try {
   await withWebMCP(site.url, async client => {
+    // Must come first: later checks invoke tools, which fill the page.
+    await check('page does not pre-render what a tool produces', async c => {
+      // Load-bearing. If the answer is already in the DOM, an agent can scrape it and
+      // appear to have used the tool, and the whole premise stops being demonstrable.
+      const nodes = Number(await c.evaluate(`document.querySelectorAll('.obligation').length`));
+      assert(nodes === 0, `${nodes} obligation nodes were in the DOM before any tool ran`);
+    })(client);
+
     await check('page reports WebMCP ready', async c => {
       const status = await c.evaluate(`document.getElementById('webmcp-status').dataset.status`);
       assert(status === 'ready', `status was "${status}", expected "ready"`);
@@ -68,8 +76,16 @@ try {
       assert(/direct debit/.test(body), `direct debit deadline missing:\n${body}`);
     })(client);
 
+    await check('tools register before the load event', async c => {
+      const at = Number(await c.evaluate(`window.__toolsRegisteredAt ?? -1`));
+      const loadEnd = Number(await c.evaluate(
+        `performance.getEntriesByType('navigation')[0].loadEventEnd | 0`));
+      assert(at >= 0, 'registration was never instrumented');
+      assert(at <= loadEnd + 50,
+        `tools registered at ${at}ms, load ended at ${loadEnd}ms — too late for an extension that scans at load`);
+    })(client);
+
     await check('list_obligations mutates the page the human is looking at', async c => {
-      await c.evaluate(`document.getElementById('obligations').dataset.count = '0'`);
       await c.invoke('list_obligations', { withinDays: 365 });
       const count = Number(await c.evaluate(`document.getElementById('obligations').dataset.count`));
       assert(count > 0, `obligations panel still empty after the tool ran (count=${count})`);
