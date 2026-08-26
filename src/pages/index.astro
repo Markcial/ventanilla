@@ -5,60 +5,74 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Ventanilla — agent-native paperwork</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" />
   </head>
   <body data-mode="demo">
-    <header class="top">
-      <div class="brand">
-        <h1>Ventanilla</h1>
-        <p class="tagline">Spanish freelance paperwork, prepared by your agent and decided by you.</p>
+    <header class="masthead">
+      <div class="masthead-row">
+        <div class="brand">
+          <h1>Ventanilla</h1>
+          <p class="tagline">Your agent prepares the paperwork. You decide.</p>
+        </div>
+        <div class="controls">
+          <div class="modes" role="group" aria-label="Mode">
+            <button type="button" data-set-mode="demo" aria-pressed="true">Demo</button>
+            <button type="button" data-set-mode="real" aria-pressed="false">Real</button>
+          </div>
+          <p id="webmcp-status" class="status" data-status="unknown">Checking…</p>
+        </div>
       </div>
-      <div class="modes" role="group" aria-label="Mode">
-        <button type="button" data-set-mode="demo" aria-pressed="true">Demo</button>
-        <button type="button" data-set-mode="real" aria-pressed="false">Real</button>
-      </div>
+      <p id="mode-strip" class="mode-strip" data-mode="demo">Loading…</p>
+
+      <nav class="tabs" role="tablist" aria-label="Sections">
+        <button type="button" role="tab" data-tab="invoices" aria-selected="true" aria-controls="panel-invoices">
+          Invoices <span class="count"></span>
+        </button>
+        <button type="button" role="tab" data-tab="deadlines" aria-selected="false" aria-controls="panel-deadlines" tabindex="-1">
+          Deadlines
+        </button>
+        <button type="button" role="tab" data-tab="profile" aria-selected="false" aria-controls="panel-profile" tabindex="-1">
+          Profile
+        </button>
+      </nav>
     </header>
 
-    <p id="mode-strip" class="mode-strip" data-mode="demo">Loading…</p>
-    <p id="webmcp-status" class="status" data-status="unknown">Checking WebMCP support…</p>
-
     <main>
-      <section class="panel">
-        <h2>Your details</h2>
-        <p class="note">Stored only in this browser. Nothing is sent to a server.</p>
-        <div id="profile" data-mode="demo"><p class="empty">Loading…</p></div>
-      </section>
-
-      <section class="panel">
-        <h2>Invoices</h2>
-        <p class="note">Ask your agent: <em>“invoice Astillero Ribera 800 euros plus VAT”</em></p>
+      <section id="panel-invoices" data-panel="invoices" role="tabpanel" aria-labelledby="tab-invoices">
+        <p class="prompt">Say to your agent: <em>“invoice Astillero Ribera 800 euros plus VAT”</em></p>
         <div id="invoices" data-count="0"><p class="empty">No invoices yet.</p></div>
       </section>
 
-      <section class="panel">
-        <h2>What you owe, and when</h2>
-        <p class="note">Ask your agent: <em>“what do I have to file next?”</em></p>
+      <section id="panel-deadlines" data-panel="deadlines" role="tabpanel" hidden>
+        <p class="prompt">Say to your agent: <em>“what do I have to file next?”</em></p>
         <div id="obligations" data-count="0">
           <p class="empty">Nothing here yet — on purpose.</p>
-          <p class="empty small">This panel stays empty until something fills it, so when an agent
-            answers you can tell it called the tool instead of reading the screen.</p>
+          <p class="empty small">This stays empty until something fills it, so when an agent answers
+            you can tell it called the tool instead of reading the screen.</p>
           <button id="load-obligations" type="button">Show them myself</button>
         </div>
+      </section>
+
+      <section id="panel-profile" data-panel="profile" role="tabpanel" hidden>
+        <p class="prompt">Stored only in this browser. Nothing is sent to a server.</p>
+        <div id="profile" data-mode="demo"><p class="empty">Loading…</p></div>
       </section>
     </main>
 
     <footer>
-      <p>Deadlines shift to the next working day when they land on a weekend. Public holidays are
-        not applied. Nothing is ever submitted to the AEAT — filing on someone else’s behalf needs
+      <p>Deadlines move to the next working day when they land on a weekend; public holidays are not
+        applied. Nothing is ever submitted to the AEAT — filing on someone else’s behalf needs
         registered <em>colaborador social</em> status.</p>
     </footer>
 
     <script>
       import { registerTools } from '../tools/register';
       import { isSupported } from '../lib/webmcp';
-      import { getMode, setMode, getProfile, saveProfile, today } from '../lib/db';
+      import { getMode, setMode, getProfile, saveProfile, listInvoices, today } from '../lib/db';
       import { upcomingObligations } from '../lib/obligations';
-      import { renderObligations, renderProfile, renderModeStrip, renderInvoices } from '../lib/render';
-      import { listInvoices } from '../lib/db';
+      import { renderObligations, renderProfile, renderModeStrip, renderInvoices, focusTab } from '../lib/render';
       import type { Mode } from '../lib/mode';
       import type { Profile } from '../lib/types';
 
@@ -71,23 +85,27 @@
       if (isSupported()) {
         statusEl.dataset.status = 'ready';
         statusEl.dataset.tools = names.join(',');
-        statusEl.textContent = `WebMCP ready — ${names.length} tools available to your agent: ${names.join(', ')}`;
+        statusEl.textContent = `${names.length} tools live`;
+        statusEl.title = `Available to your agent: ${names.join(', ')}`;
       } else {
         statusEl.dataset.status = 'unsupported';
-        statusEl.textContent = 'WebMCP not detected. Open in the ChatGPT desktop browser, or Chrome 149+ with the WebMCP trial enabled. The page still works on its own.';
+        statusEl.textContent = 'No WebMCP';
+        statusEl.title = 'Open in the ChatGPT desktop browser, or Chrome 149+ with the WebMCP trial enabled. The page still works on its own.';
       }
 
       let mode: Mode = await getMode();
       let profile: Profile = await getProfile(mode);
 
+      const EMPTY_DEADLINES = `
+        <p class="empty">Nothing here yet — on purpose.</p>
+        <p class="empty small">This stays empty until something fills it, so when an agent answers
+          you can tell it called the tool instead of reading the screen.</p>
+        <button id="load-obligations" type="button">Show them myself</button>`;
+
       function clearObligations() {
         const host = document.getElementById('obligations')!;
         host.dataset.count = '0';
-        host.innerHTML = `
-          <p class="empty">Nothing here yet — on purpose.</p>
-          <p class="empty small">This panel stays empty until something fills it, so when an agent
-            answers you can tell it called the tool instead of reading the screen.</p>
-          <button id="load-obligations" type="button">Show them myself</button>`;
+        host.innerHTML = EMPTY_DEADLINES;
         wireLoadButton();
       }
 
@@ -124,11 +142,10 @@
         profile = await getProfile(next);
         renderModeStrip(next);
         renderProfile(profile, next);
-        // Invoices already exist as records, so showing them is not pre-rendering a
-        // tool's answer — unlike the obligations panel, which must stay empty.
-        await renderInvoices(await listInvoices(next), profile.nif);
         wireProfileForm();
-        // Switching modes must never leave the other mode's answers on screen.
+        // Invoices already exist as records, so showing them is not pre-rendering a
+        // tool's answer — unlike the deadlines panel, which must stay empty.
+        await renderInvoices(await listInvoices(next), profile.nif);
         clearObligations();
       }
 
@@ -139,114 +156,222 @@
         button.addEventListener('click', () => applyMode(button.dataset.setMode as Mode));
       }
 
+      const tabs = [...document.querySelectorAll<HTMLButtonElement>('[data-tab]')];
+      for (const [index, tab] of tabs.entries()) {
+        tab.addEventListener('click', () => focusTab(tab.dataset.tab!));
+        tab.addEventListener('keydown', event => {
+          const step = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
+          if (!step) return;
+          event.preventDefault();
+          const next = tabs[(index + step + tabs.length) % tabs.length];
+          focusTab(next.dataset.tab!);
+          next.focus();
+        });
+      }
+
       await applyMode(mode);
+      focusTab('invoices');
     </script>
 
     <style is:global>
+      /*
+        A register, not a dashboard. Everything that matters here is a series, a
+        date, an amount or a fingerprint, so the monospace carries the personality
+        and the sans stays out of the way.
+      */
       :root {
-        --ink: #14171a; --muted: #5b6570; --line: #e3e7eb;
-        --bg: #fbfcfd; --panel: #fff; --accent: #12507a; --warn: #a4400a;
-        --edge: #12507a;
+        --ink: #16191d;
+        --ink-soft: #5a6470;
+        --ink-faint: #8b949d;
+        --paper: #f4f6f5;
+        --card: #ffffff;
+        --rule: #dde3e1;
+        --seal: #0f5f56;
+        --seal-wash: #e7f0ee;
+        --flag: #b4341c;
+        --sans: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+        --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
       }
-      body[data-mode="real"] { --edge: #8a5a00; }
+      body[data-mode="real"] { --seal: #8a4b12; --seal-wash: #f7efe4; }
+
       * { box-sizing: border-box; }
       body {
-        margin: 0; background: var(--bg); color: var(--ink);
-        font: 16px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+        margin: 0; background: var(--paper); color: var(--ink);
+        font: 400 16px/1.5 var(--sans);
+        -webkit-font-smoothing: antialiased;
       }
-      .top {
-        max-width: 64rem; margin: 0 auto; padding: 2rem 1.5rem 1rem;
+      :focus-visible { outline: 2px solid var(--seal); outline-offset: 2px; }
+
+      .masthead { background: var(--card); border-bottom: 1px solid var(--rule); }
+      .masthead-row {
+        max-width: 62rem; margin: 0 auto; padding: 1.4rem 1.5rem .9rem;
         display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-start; justify-content: space-between;
       }
-      h1 { margin: 0; font-size: 1.75rem; letter-spacing: -0.025em; }
-      .tagline { margin: .3rem 0 0; color: var(--muted); font-size: .92rem; }
-      .modes { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: #fff; }
+      .brand h1 {
+        margin: 0; font-size: 1.5rem; font-weight: 600; letter-spacing: -0.03em;
+      }
+      .tagline { margin: .15rem 0 0; color: var(--ink-soft); font-size: .88rem; }
+      .controls { display: flex; align-items: center; gap: .6rem; }
+
+      .modes { display: inline-flex; border: 1px solid var(--rule); border-radius: 7px; overflow: hidden; }
       .modes button {
-        appearance: none; border: 0; background: transparent; font: inherit; font-size: .85rem;
-        padding: .45rem 1rem; cursor: pointer; color: var(--muted);
+        appearance: none; border: 0; background: var(--card); cursor: pointer;
+        font: 500 .8rem var(--sans); padding: .4rem .9rem; color: var(--ink-soft);
       }
-      .modes button + button { border-left: 1px solid var(--line); }
-      .modes button[aria-pressed="true"] { background: var(--edge); color: #fff; font-weight: 500; }
-      .mode-strip, .status {
-        max-width: 64rem; margin: 0 auto .5rem; padding: .55rem 1rem;
-        font-size: .84rem; border-radius: 8px; border-left: 3px solid var(--edge);
-        background: #eef3f7; color: #23404f;
-      }
-      .mode-strip { width: calc(100% - 3rem); }
-      .mode-strip[data-mode="real"] { background: #fdf5e7; color: #6b4400; }
+      .modes button + button { border-left: 1px solid var(--rule); }
+      .modes button[aria-pressed="true"] { background: var(--seal); color: #fff; }
+
       .status {
-        width: calc(100% - 3rem); background: #eef2f5; color: var(--muted);
-        border-left-color: var(--line); margin-bottom: 1.25rem;
+        margin: 0; padding: .35rem .6rem; border-radius: 6px; white-space: nowrap;
+        font: 500 .74rem var(--mono); background: #eef1f0; color: var(--ink-soft);
       }
-      .status[data-status="ready"] { background: #e9f4ec; color: #1d5c33; border-left-color: #2f7d4a; }
-      .status[data-status="unsupported"] { background: #fcf1e8; color: var(--warn); border-left-color: var(--warn); }
-      main {
-        max-width: 64rem; margin: 0 auto; padding: 0 1.5rem 2rem;
-        display: grid; gap: 1.25rem; grid-template-columns: minmax(0,1fr);
+      .status[data-status="ready"] { background: var(--seal-wash); color: var(--seal); }
+      .status[data-status="unsupported"] { background: #fbeee9; color: var(--flag); }
+
+      .mode-strip {
+        max-width: 62rem; margin: 0 auto; padding: 0 1.5rem 1rem;
+        font-size: .8rem; color: var(--ink-soft);
       }
-      @media (min-width: 58rem) { main { grid-template-columns: 21rem minmax(0,1fr); align-items: start; } }
-      .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 1.15rem 1.25rem; }
-      .panel h2 { margin: 0 0 .2rem; font-size: 1rem; letter-spacing: -0.01em; }
-      .note { margin: 0 0 .9rem; font-size: .82rem; color: var(--muted); }
-      .facts { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: .32rem .8rem; font-size: .88rem; }
-      .facts dt { color: var(--muted); }
-      .facts dd { margin: 0; }
-      .fields { display: grid; gap: .6rem; font-size: .85rem; }
-      .fields label { display: grid; gap: .2rem; color: var(--muted); }
+
+      .tabs {
+        max-width: 62rem; margin: 0 auto; padding: 0 1.5rem;
+        display: flex; gap: .25rem;
+      }
+      .tabs button {
+        appearance: none; background: none; border: 0; cursor: pointer;
+        font: 500 .88rem var(--sans); color: var(--ink-soft);
+        padding: .55rem .85rem; border-bottom: 2px solid transparent;
+        display: inline-flex; align-items: center; gap: .4rem;
+      }
+      .tabs button:hover { color: var(--ink); }
+      .tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--seal); }
+      .tabs .count:not(:empty) {
+        font: 500 .7rem var(--mono); background: var(--seal-wash); color: var(--seal);
+        border-radius: 20px; padding: .1rem .45rem;
+      }
+
+      main { max-width: 62rem; margin: 0 auto; padding: 1.5rem 1.5rem 2.5rem; }
+      .prompt { margin: 0 0 1.1rem; font-size: .85rem; color: var(--ink-soft); }
+      .prompt em { color: var(--ink); font-style: italic; }
+
+      .empty { margin: 0 0 .5rem; color: var(--ink-soft); font-size: .9rem; }
+      .empty.small { font-size: .82rem; max-width: 34rem; }
+
+      /* The chain. Each record hangs off the fingerprint of the one below it. */
+      #invoices { display: grid; gap: 0; border-radius: 10px; }
+      #invoices.touched, #obligations.touched {
+        animation: notice 1.1s ease-out;
+      }
+      @keyframes notice {
+        from { box-shadow: 0 0 0 4px var(--seal-wash); }
+        to { box-shadow: 0 0 0 4px transparent; }
+      }
+      .invoice {
+        position: relative; background: var(--card);
+        border: 1px solid var(--rule); border-radius: 9px;
+        padding: .9rem 1.05rem; margin-bottom: 1.6rem;
+        display: flex; gap: 1.1rem; align-items: flex-start; justify-content: space-between;
+      }
+      .invoice:last-child { margin-bottom: 0; }
+      .invoice.fresh { border-color: var(--seal); box-shadow: 0 0 0 3px var(--seal-wash); }
+      .invoice-body { min-width: 0; flex: 1; }
+
+      .link {
+        position: absolute; left: 1.05rem; right: 1.05rem; bottom: -1.6rem; height: 1.6rem;
+        margin: 0; display: flex; align-items: center; gap: .5rem;
+        font-size: .68rem; color: var(--ink-faint);
+      }
+      .link::before {
+        content: ""; position: absolute; left: -.1rem; top: 0; bottom: 0;
+        border-left: 2px solid var(--ink-faint); opacity: .45;
+      }
+      .link-label { padding-left: .8rem; text-transform: uppercase; letter-spacing: .07em; }
+      .link code {
+        font: 400 .62rem var(--mono); color: var(--ink-faint);
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      }
+      .invoice:last-child .link::before { border-left-style: dashed; }
+      .link-root .link-label { color: var(--seal); }
+
+      .invoice header { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; }
+      .invoice h3 { margin: 0; font: 500 .92rem var(--mono); letter-spacing: -0.01em; }
+      .invoice .total { font: 500 .95rem var(--mono); white-space: nowrap; }
+      .invoice .client { margin: .3rem 0 .6rem; font-size: .88rem; }
+      .invoice .nif { font: 400 .74rem var(--mono); color: var(--ink-faint); margin-left: .3rem; }
+      .invoice dl {
+        margin: 0; display: grid; grid-template-columns: auto auto; gap: .1rem .9rem;
+        justify-content: start; font-size: .78rem;
+      }
+      .invoice dt { color: var(--ink-soft); }
+      .invoice dd { margin: 0; font-family: var(--mono); font-size: .74rem; }
+      .hash { margin: .6rem 0 0; font-size: .66rem; display: grid; gap: .1rem; }
+      .hash span { color: var(--ink-soft); text-transform: uppercase; letter-spacing: .07em; }
+      .hash code { font: 400 .64rem/1.35 var(--mono); color: var(--ink); word-break: break-all; }
+
+      .qr { margin: 0; flex: 0 0 auto; text-align: center; }
+      .qr svg { display: block; width: 84px; height: 84px; }
+      .qr figcaption {
+        margin-top: .3rem; font: 400 .6rem var(--mono);
+        color: var(--ink-faint); text-transform: uppercase; letter-spacing: .06em;
+      }
+
+      #obligations { display: grid; gap: .65rem; border-radius: 10px; }
+      .obligation {
+        background: var(--card); border: 1px solid var(--rule); border-radius: 9px;
+        border-left: 3px solid var(--seal); padding: .85rem 1rem;
+      }
+      .obligation.soon { border-left-color: var(--flag); }
+      .obligation header { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; }
+      .obligation h3 { margin: 0; font-size: .95rem; font-weight: 600; }
+      .period { font: 400 .8rem var(--mono); color: var(--ink-soft); margin-left: .2rem; }
+      .days { font: 500 .78rem var(--mono); color: var(--ink-soft); white-space: nowrap; }
+      .obligation .what { margin: .1rem 0 .55rem; font-size: .86rem; color: var(--ink-soft); }
+      .obligation dl {
+        margin: 0 0 .5rem; display: grid; grid-template-columns: auto auto;
+        justify-content: start; gap: .1rem .9rem; font-size: .78rem;
+      }
+      .obligation dt { color: var(--ink-soft); }
+      .obligation dd { margin: 0; font-family: var(--mono); font-size: .74rem; }
+      .obligation dd strong { font-weight: 500; color: var(--seal); }
+      .obligation.soon dd strong { color: var(--flag); }
+      .reason { margin: 0; font-size: .78rem; color: var(--ink-soft); max-width: 46rem; }
+
+      .facts, .fields { max-width: 26rem; }
+      .facts { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: .35rem 1rem; font-size: .88rem; }
+      .facts dt { color: var(--ink-soft); }
+      .facts dd { margin: 0; font-family: var(--mono); font-size: .82rem; }
+      .fields { display: grid; gap: .7rem; }
+      .fields label { display: grid; gap: .25rem; font-size: .8rem; color: var(--ink-soft); }
       .fields label.check { grid-template-columns: auto 1fr; align-items: center; gap: .45rem; }
       .fields input, .fields select {
-        font: inherit; font-size: .88rem; padding: .4rem .5rem; color: var(--ink);
-        border: 1px solid var(--line); border-radius: 6px; background: #fff;
+        font: 400 .88rem var(--sans); padding: .45rem .55rem; color: var(--ink);
+        border: 1px solid var(--rule); border-radius: 6px; background: var(--card);
       }
+      .fields input[name="nif"], .fields input[type="date"] { font-family: var(--mono); font-size: .82rem; }
       .fields input[type="checkbox"] { width: auto; justify-self: start; }
+      .saved { font: 500 .78rem var(--mono); color: var(--seal); }
+
       .fields button, #load-obligations {
-        margin-top: .3rem; padding: .45rem .9rem; font: inherit; font-size: .85rem;
-        background: var(--edge); color: #fff; border: 1px solid transparent;
-        border-radius: 6px; cursor: pointer; justify-self: start;
+        justify-self: start; margin-top: .2rem; padding: .48rem 1rem;
+        font: 500 .85rem var(--sans); border-radius: 7px; cursor: pointer;
+        background: var(--seal); color: #fff; border: 1px solid transparent;
       }
-      #load-obligations { background: #fff; color: var(--edge); border-color: var(--line); }
-      #load-obligations:hover { background: #f2f6f9; }
-      .saved { font-size: .8rem; color: #1d5c33; }
-      #obligations { display: grid; gap: .7rem; transition: background-color .5s ease; border-radius: 8px; }
-      #obligations.touched { background: #fff8dd; }
-      .obligation { border: 1px solid var(--line); border-left: 3px solid var(--edge); border-radius: 8px; padding: .8rem .95rem; }
-      .obligation.soon { border-left-color: var(--warn); }
-      .obligation header { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; }
-      .obligation h3 { margin: 0; font-size: .95rem; }
-      .period { color: var(--muted); font-weight: 400; }
-      .days { font-size: .8rem; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
-      .obligation .what { margin: .2rem 0 .5rem; font-size: .88rem; }
-      .obligation dl { margin: 0 0 .5rem; display: grid; grid-template-columns: auto 1fr; gap: .15rem .8rem; font-size: .82rem; }
-      .obligation dt { color: var(--muted); }
-      .obligation dd { margin: 0; font-variant-numeric: tabular-nums; }
-      .reason { margin: 0; font-size: .8rem; color: var(--muted); }
-      #invoices { display: grid; gap: .7rem; transition: background-color .5s ease; border-radius: 8px; }
-      #invoices.touched { background: #fff8dd; }
-      .invoice {
-        display: flex; gap: 1rem; align-items: flex-start; justify-content: space-between;
-        border: 1px solid var(--line); border-left: 3px solid var(--edge);
-        border-radius: 8px; padding: .8rem .95rem;
+      #load-obligations { background: var(--card); color: var(--seal); border-color: var(--rule); }
+      #load-obligations:hover { background: var(--seal-wash); }
+
+      footer {
+        max-width: 62rem; margin: 0 auto; padding: 0 1.5rem 3rem;
+        color: var(--ink-faint); font-size: .76rem;
       }
-      .invoice.fresh { border-left-color: #2f7d4a; background: #fbfefc; }
-      .invoice-body { min-width: 0; flex: 1; }
-      .invoice header { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; }
-      .invoice h3 { margin: 0; font-size: .95rem; font-variant-numeric: tabular-nums; }
-      .invoice .total { font-size: .95rem; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
-      .invoice .client { margin: .15rem 0 .5rem; font-size: .86rem; }
-      .invoice .nif { color: var(--muted); font-size: .8rem; }
-      .invoice dl { margin: 0 0 .5rem; display: grid; grid-template-columns: auto 1fr; gap: .12rem .8rem; font-size: .81rem; }
-      .invoice dt { color: var(--muted); }
-      .invoice dd { margin: 0; font-variant-numeric: tabular-nums; }
-      .hash { margin: .15rem 0 0; font-size: .72rem; display: grid; gap: .05rem; }
-      .hash span { color: var(--muted); }
-      .hash code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .7rem; word-break: break-all; color: #2c3a44; }
-      .hash code.none { color: var(--muted); font-style: italic; word-break: normal; }
-      .qr { margin: 0; text-align: center; flex: 0 0 auto; }
-      .qr svg { display: block; width: 90px; height: 90px; }
-      .qr figcaption { font-size: .66rem; color: var(--muted); margin-top: .2rem; }
-      .empty { margin: 0 0 .5rem; color: var(--muted); font-size: .88rem; }
-      .empty.small { font-size: .8rem; }
-      footer { max-width: 64rem; margin: 0 auto; padding: 0 1.5rem 3rem; color: var(--muted); font-size: .78rem; }
+      footer p { max-width: 46rem; margin: 0; }
+
+      @media (max-width: 34rem) {
+        .invoice { flex-direction: column; }
+        .qr { align-self: flex-start; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        * { transition: none !important; animation: none !important; }
+      }
     </style>
   </body>
 </html>

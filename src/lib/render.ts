@@ -18,6 +18,7 @@ export function renderObligations(obligations: Obligation[]): void {
   if (!host) return;
 
   host.dataset.count = String(obligations.length);
+  focusTab('deadlines');
 
   if (obligations.length === 0) {
     host.innerHTML = '<p class="empty">Nothing due in that window.</p>';
@@ -105,6 +106,8 @@ export async function renderInvoices(invoices: Invoice[], issuerNif: string, hig
   if (!host) return;
 
   host.dataset.count = String(invoices.length);
+  setTabCount('invoices', invoices.length);
+  if (highlightId) focusTab('invoices');
 
   if (invoices.length === 0) {
     host.innerHTML = '<p class="empty">No invoices yet.</p>';
@@ -122,6 +125,9 @@ export async function renderInvoices(invoices: Invoice[], issuerNif: string, hig
       : '';
     return `
       <article class="invoice${inv.id === highlightId ? ' fresh' : ''}" data-id="${escape(inv.id)}">
+        ${inv.hash ? (inv.previousHash
+          ? `<p class="link"><span class="link-label">links to</span><code>${inv.previousHash}</code></p>`
+          : '<p class="link link-root"><span class="link-label">chain starts here</span></p>') : ''}
         <div class="invoice-body">
           <header>
             <h3>${escape(inv.id)}</h3>
@@ -134,14 +140,36 @@ export async function renderInvoices(invoices: Invoice[], issuerNif: string, hig
             <dt>VAT ${inv.vatRate}%</dt><dd>${formatAmount(inv.vatCents)} EUR</dd>
           </dl>
           ${inv.hash ? `<p class="hash"><span>Fingerprint</span><code>${inv.hash}</code></p>` : ''}
-          ${inv.previousHash ? `<p class="hash"><span>Chained to</span><code>${inv.previousHash}</code></p>`
-            : inv.hash ? '<p class="hash"><span>Chained to</span><code class="none">first record in the chain</code></p>' : ''}
         </div>
         ${qr ? `<figure class="qr">${qr}<figcaption>QR tributario</figcaption></figure>` : ''}
       </article>`;
   }));
 
   host.innerHTML = cards.join('');
+}
+
+/**
+ * Bring a tab forward.
+ *
+ * Tools call this whenever they write into a panel. If an agent filled in a tab
+ * the person could not see, the answer would be off screen and the one thing
+ * this project claims — that you watch the work happen — would stop being true.
+ */
+export function focusTab(name: string): void {
+  for (const tab of document.querySelectorAll<HTMLButtonElement>('[data-tab]')) {
+    const selected = tab.dataset.tab === name;
+    tab.setAttribute('aria-selected', String(selected));
+    tab.tabIndex = selected ? 0 : -1;
+  }
+  for (const panel of document.querySelectorAll<HTMLElement>('[data-panel]')) {
+    panel.hidden = panel.dataset.panel !== name;
+  }
+}
+
+/** Keep the invoice count in the tab label honest. */
+export function setTabCount(name: string, count: number): void {
+  const badge = document.querySelector(`[data-tab="${name}"] .count`);
+  if (badge) badge.textContent = count > 0 ? String(count) : '';
 }
 
 /** Flash the region an agent just changed, so the human notices it moved. */

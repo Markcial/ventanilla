@@ -247,6 +247,44 @@ try {
       await switchMode(c, 'demo');
     })(client);
 
+    await check('a tool brings its own tab forward', async c => {
+      // If an agent filled in a tab the person could not see, the answer would be
+      // off screen and the premise — that you watch the work happen — would break.
+      await switchMode(c, 'demo');
+      await c.evaluate(`document.querySelector('[data-tab="profile"]').click()`);
+      const parked = await c.evaluate(
+        `document.querySelector('[data-tab="profile"]').getAttribute('aria-selected')`);
+      assert(parked === 'true', 'could not park on the profile tab first');
+
+      await c.invoke('list_obligations', { withinDays: 365 });
+      const onDeadlines = await c.evaluate(
+        `document.querySelector('[data-tab="deadlines"]').getAttribute('aria-selected')`);
+      assert(onDeadlines === 'true', 'list_obligations left the deadlines tab hidden');
+      const visible = await c.evaluate(`!document.querySelector('[data-panel="deadlines"]').hidden`);
+      assert(visible, 'the deadlines panel stayed hidden after its tool ran');
+
+      await c.invoke('register_invoice', {
+        clientName: 'Tab Focus SL', clientNif: 'B66666666', baseEuros: 10, issuedOn: '2026-09-29',
+      });
+      const onInvoices = await c.evaluate(
+        `document.querySelector('[data-tab="invoices"]').getAttribute('aria-selected')`);
+      assert(onInvoices === 'true', 'register_invoice left the invoices tab hidden');
+    })(client);
+
+    await check('the invoice count is shown on its tab', async c => {
+      const badge = await c.evaluate(`document.querySelector('[data-tab="invoices"] .count').textContent`);
+      const actual = await c.evaluate(`document.getElementById('invoices').dataset.count`);
+      assert(badge === actual, `tab badge said "${badge}" but there are ${actual} invoices`);
+    })(client);
+
+    await check('tabs are reachable by keyboard', async c => {
+      await c.evaluate(`document.querySelector('[data-tab="invoices"]').focus()`);
+      const roving = await c.evaluate(
+        `[...document.querySelectorAll('[data-tab]')].map(t => t.tabIndex).join(',')`);
+      assert(/^(0,-1,-1|-1,0,-1|-1,-1,0)$/.test(roving),
+        `tab stops should follow the selected tab, got "${roving}"`);
+    })(client);
+
     await check('unknown tool fails loudly', async c => {
       let threw = false;
       try { await c.invoke('does_not_exist'); } catch { threw = true; }
