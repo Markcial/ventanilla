@@ -5,10 +5,17 @@
  * mixed VAT rates, one of them zero-rated, so a VAT return has real arithmetic to
  * do rather than adding one number to another.
  *
- * Every tax ID here comes from the AEAT's own test census block, 8989000x — the
- * range their published examples use (89890001K appears in the official QR
- * document). Check digits are computed with the real algorithm, so the values are
- * well formed, and none of them identifies a real person or company.
+ * Every tax ID here is from the 8989000x range the AEAT's published examples use
+ * (89890001K appears in the official QR document). Check digits are computed with
+ * the real algorithm, so the values are well formed, and none of them identifies a
+ * real person or company.
+ *
+ * They are therefore not accepted by the tax agency either. Submitting a record
+ * with one comes back as error 1239, "El NIF no está identificado en el censo de
+ * la AEAT" — even in preproduction, which validates recipients against the real
+ * census. Being safe to demonstrate with and being acceptable to file are, it
+ * turns out, the same property with opposite signs. Demo mode never submits, so
+ * this costs nothing; a real submission needs a recipient who actually exists.
  *
  * That matters beyond tidiness. An earlier version of this file billed an
  * invented amount to "Ayuntamiento de Cadaqués" under a P-prefixed tax ID, which

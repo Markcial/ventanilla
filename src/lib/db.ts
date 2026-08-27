@@ -15,7 +15,7 @@ import { DEMO_PROFILE, DEMO_INVOICES, EMPTY_REAL_PROFILE } from './sample-data';
 import { buildAltaRecord } from './verifactu';
 
 const DB_NAME = 'ventanilla';
-const VERSION = 3;
+const VERSION = 4;
 
 let dbPromise: Promise<IDBPDatabase> | null = null;
 
@@ -28,11 +28,14 @@ function db() {
         invoices.createIndex('mode', 'mode');
         database.createObjectStore('settings');
       }
-      if (oldVersion > 0 && oldVersion < 3) {
-        // v1 stored a single unscoped profile, and neither v1 nor v2 kept the
-        // timestamp that went into each fingerprint — without it a record cannot be
-        // reproduced as a valid submission. Both are dropped rather than migrated:
-        // there is no way to recover a timestamp that was never written down.
+      if (oldVersion > 0 && oldVersion < 4) {
+        // Earlier versions cannot be migrated into something valid:
+        //   v1 kept a single unscoped profile, with no way to tell demo from real
+        //   v2 did not store the timestamp that went into each fingerprint
+        //   v3 stored tax IDs exactly as typed, so a lowercase one is baked into
+        //     the hashes of every record that carries it
+        // A fingerprint is computed over what was stored, so correcting any of
+        // these afterwards invalidates the records they belong to. Dropped instead.
         for (const name of ['profile', 'profiles', 'invoices']) {
           if (database.objectStoreNames.contains(name)) database.deleteObjectStore(name);
         }

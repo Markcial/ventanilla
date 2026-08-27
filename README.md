@@ -120,6 +120,32 @@ if nothing about them can be mistaken for a record of something that happened.
 The preproduction environment exists so developers can send test records with a
 real certificate and no fiscal consequences. Using it that way is what it is for.
 
+## Verified against the tax agency, not just against the schema
+
+A record produced by this app has been accepted by the AEAT preproduction
+service:
+
+```
+Envío            Correcto
+CSV              A-2DL83NSPLJHYMY
+Registro         Correcto
+```
+
+An agent created the invoice from a sentence, the page chained and fingerprinted
+it, and the person sent it under their own certificate. Preproduction accepts
+real certificates and has no fiscal effect, which is what it is published for.
+
+Two things that took getting there, both worth knowing before anyone tries:
+
+- **A lowercase tax ID passes the schema and fails the agency.** `NIFType`
+  constrains only the length to nine characters, so `89890001k` validates
+  perfectly and then does not match the certificate signing the submission.
+  Tax IDs are normalised on the way in now, before anything is hashed.
+- **Recipient tax IDs are checked against the real census, in preproduction
+  too.** The invented ones in the sample data come back as error 1239, "El NIF no
+  está identificado en el censo de la AEAT". Being safe to demonstrate with and
+  being acceptable to file are the same property with opposite signs.
+
 ## Why it prepares but never sends
 
 Not a policy. A browser cannot reach the tax agency, and this is checkable in
