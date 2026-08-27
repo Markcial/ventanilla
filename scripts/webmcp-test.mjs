@@ -289,6 +289,59 @@ try {
       assert(selectedIsStop, 'the tab stop is not on the selected tab');
     })(client);
 
+    await check('prepare_vat_return works out the quarter from the invoices', async c => {
+      await switchMode(c, 'demo');
+      const body = c.text(await c.invoke('prepare_vat_return', { year: 2026, quarter: 3 }));
+      assert(/Modelo 303, 3T 2026/.test(body), `wrong period:\n${body}`);
+      assert(/\[01\].*890\.00/.test(body), `the 10% base should take the first rate row:\n${body}`);
+
+      // Exact arithmetic belongs to the unit tests, which use fixed data. Earlier
+      // checks in this run register invoices of their own, so what matters here is
+      // that the sheet adds up against itself.
+      const rowQuotas = [...body.matchAll(/\[(?:03|06|09)\] Cuota: ([\d.]+)/g)].map(m => Number(m[1]));
+      const total = Number(/\[27\] Total cuota devengada: ([\d.]+)/.exec(body)?.[1]);
+      const summed = Number(rowQuotas.reduce((a, b) => a + b, 0).toFixed(2));
+      assert(rowQuotas.length > 0, `no rate-row quotas in the sheet:\n${body}`);
+      assert(Math.abs(total - summed) < 0.005,
+        `box 27 says ${total} but the rate rows add up to ${summed}`);
+      assert(/\[46\] Resultado régimen general[^:]*: ([\d.]+)/.exec(body)?.[1] === String(total.toFixed(2)),
+        `box 46 should equal box 27 minus zero deductible:\n${body}`);
+    })(client);
+
+    await check('the return says what it could not account for', async c => {
+      const body = c.text(await c.invoke('prepare_vat_return', { year: 2026, quarter: 3 }));
+      assert(/only records invoices you issue/i.test(body),
+        `it did not admit that input VAT is missing:\n${body}`);
+      assert(/DEMO-2026-005/.test(body), `the zero-rated invoice was not flagged:\n${body}`);
+    })(client);
+
+    await check('the return lands on its own tab as a numbered sheet', async c => {
+      await c.invoke('prepare_vat_return', { year: 2026, quarter: 3 });
+      const tab = await c.evaluate(
+        `document.querySelector('[data-tab="vat-return"]').getAttribute('aria-selected')`);
+      assert(tab === 'true', 'the Modelo 303 tab was not brought forward');
+      const boxes = Number(await c.evaluate(`document.getElementById('vat-return').dataset.boxes`));
+      assert(boxes > 10, `only ${boxes} boxes rendered`);
+      const numbers = await c.evaluate(
+        `[...document.querySelectorAll('.boxes .num')].map(e => e.textContent).join(',')`);
+      for (const n of ['[27]', '[45]', '[46]', '[71]']) {
+        assert(numbers.includes(n), `box ${n} missing from the sheet: ${numbers}`);
+      }
+    })(client);
+
+    await check('the return points at preproduction, never the live form', async c => {
+      const page = await c.evaluate(`document.body.innerHTML`);
+      assert(/prewww2\.aeat\.es\/wlpl\/A303-FWME/.test(page), 'no link to the preproduction form');
+      assert(!/www1\.agenciatributaria\.gob\.es\/wlpl\/A303/.test(page),
+        'the live 303 form is linked somewhere');
+    })(client);
+
+    await check('an empty quarter produces a valid empty return', async c => {
+      const body = c.text(await c.invoke('prepare_vat_return', { year: 2026, quarter: 1 }));
+      assert(/0 rate row/.test(body), `expected an empty return:\n${body}`);
+      assert(/\[27\] Total cuota devengada: 0\.00/.test(body), `box 27 should be zero:\n${body}`);
+    })(client);
+
     await check('export_submission is registered', async c => {
       assert(c.listTools().some(t => t.name === 'export_submission'),
         `tools were [${c.listTools().map(t => t.name)}]`);

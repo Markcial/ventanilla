@@ -33,6 +33,9 @@
         <button type="button" role="tab" data-tab="deadlines" aria-selected="false" aria-controls="panel-deadlines" tabindex="-1">
           Deadlines
         </button>
+        <button type="button" role="tab" data-tab="vat-return" aria-selected="false" aria-controls="panel-vat-return" tabindex="-1">
+          Modelo 303
+        </button>
         <button type="button" role="tab" data-tab="submission" aria-selected="false" aria-controls="panel-submission" tabindex="-1">
           Submission
         </button>
@@ -55,6 +58,15 @@
           <p class="empty small">This stays empty until something fills it, so when an agent answers
             you can tell it called the tool instead of reading the screen.</p>
           <button id="load-obligations" type="button">Show them myself</button>
+        </div>
+      </section>
+
+      <section id="panel-vat-return" data-panel="vat-return" role="tabpanel" hidden>
+        <p class="prompt">Say to your agent: <em>“work out my VAT return for last quarter”</em></p>
+        <div id="vat-return">
+          <p class="empty">Nothing worked out yet.</p>
+          <p class="empty small">The boxes are computed from the invoices on record, numbered as the
+            official form numbers them, and shown with whatever they could not account for.</p>
         </div>
       </section>
 
@@ -349,11 +361,30 @@
       .obligation.soon dd strong { color: var(--flag); }
       .reason { margin: 0; font-size: .78rem; color: var(--ink-soft); max-width: 46rem; }
 
-      .submission-head {
+      .return-head, .submission-head {
         display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-start;
         justify-content: space-between; margin-bottom: .8rem;
       }
-      .submission-head h3 { margin: 0; font: 500 .95rem var(--mono); }
+      .return-head h3, .submission-head h3 { margin: 0; font: 500 .95rem var(--mono); }
+      .result { margin: 0; text-align: right; }
+      .result span { display: block; font-size: .72rem; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .07em; }
+      .result strong { font: 500 1.15rem var(--mono); }
+      .warn ul { margin: .3rem 0 0; padding-left: 1.1rem; }
+      .warn li { margin-bottom: .2rem; }
+      .warn p { margin: 0 0 .2rem; }
+      .warn p + p { margin-top: .6rem; }
+      .boxes { border-collapse: collapse; width: 100%; max-width: 44rem; font-size: .82rem; }
+      .boxes th {
+        text-align: left; font: 500 .7rem var(--sans); color: var(--ink-soft);
+        text-transform: uppercase; letter-spacing: .07em; padding: .3rem .6rem .35rem 0;
+        border-bottom: 1px solid var(--rule);
+      }
+      .boxes td { padding: .3rem .6rem .3rem 0; border-bottom: 1px solid var(--rule); }
+      .boxes .num { font: 500 .78rem var(--mono); color: var(--seal); white-space: nowrap; width: 4rem; }
+      .boxes .val { font: 500 .82rem var(--mono); text-align: right; white-space: nowrap; }
+      .boxes tr:last-child td { border-bottom: 0; }
+      .filing { margin: 0 0 .5rem; font-size: .82rem; color: var(--ink-soft); max-width: 46rem; }
+      .formlink { font: 400 .76rem var(--mono); color: var(--seal); word-break: break-all; }
       .endpoint { margin: .15rem 0 0; font: 400 .72rem var(--mono); color: var(--ink-faint); word-break: break-all; }
       #download-submission {
         padding: .48rem 1rem; font: 500 .85rem var(--sans); border-radius: 7px;

@@ -148,6 +148,64 @@ export async function renderInvoices(invoices: Invoice[], issuerNif: string, hig
   host.innerHTML = cards.join('');
 }
 
+export interface VatReturnView {
+  vat: import('./vat-return').VatReturn;
+  boxes: Array<{ number: string; label: string; value: string }>;
+  formUrl: string;
+  invoiceCount: number;
+}
+
+/**
+ * The return as a sheet of numbered boxes.
+ *
+ * Laid out to be transcribed: box number first, in the order the form asks, so
+ * the eye can run down the two columns side by side. What could not be computed
+ * sits above the numbers, not below them, because someone about to file needs to
+ * know the return is incomplete before they read a total.
+ */
+export function renderVatReturn(view: VatReturnView): void {
+  const host = document.getElementById('vat-return');
+  if (!host) return;
+
+  const { vat, boxes } = view;
+  host.dataset.period = `${vat.period}-${vat.year}`;
+  host.dataset.boxes = String(boxes.length);
+  host.dataset.result = (vat.resultCents / 100).toFixed(2);
+
+  host.innerHTML = `
+    <div class="return-head">
+      <div>
+        <h3>Modelo 303 · ${vat.period} ${vat.year}</h3>
+        <p class="endpoint">${vat.rows.length} rate row(s) · ${view.invoiceCount} invoice(s) on record</p>
+      </div>
+      <p class="result"><span>To pay</span><strong>${(vat.resultCents / 100).toFixed(2)} EUR</strong></p>
+    </div>
+
+    <div class="warn">
+      <p><strong>Incomplete on purpose.</strong> Check these before filing:</p>
+      <ul>${vat.caveats.map(c => `<li>${escape(c)}</li>`).join('')}</ul>
+      ${vat.excluded.length ? `<p><strong>Left out of the rate rows:</strong></p><ul>${
+        vat.excluded.map(e => `<li>${escape(e.id)} — ${escape(e.reason)}</li>`).join('')}</ul>` : ''}
+    </div>
+
+    <table class="boxes">
+      <thead><tr><th>Box</th><th>What it is</th><th>Value</th></tr></thead>
+      <tbody>${boxes.map(b => `
+        <tr><td class="num">[${escape(b.number)}]</td><td>${escape(b.label)}</td><td class="val">${escape(b.value)}</td></tr>
+      `).join('')}</tbody>
+    </table>
+
+    <h4>Filing it</h4>
+    <p class="filing">Since 2023 this model is filed through a web form and there is no file format
+      for the current year, so nothing here can be uploaded. Open the form, type the boxes above,
+      and sign with your certificate.</p>
+    <p><a class="formlink" href="${escape(view.formUrl)}" target="_blank" rel="noopener noreferrer">${escape(view.formUrl)}</a></p>
+    <p class="filing">That is the AEAT preproduction form. It behaves like the real one and has no
+      fiscal effect.</p>`;
+
+  focusTab('vat-return');
+}
+
 export interface SubmissionView {
   invoiceId: string;
   filename: string;

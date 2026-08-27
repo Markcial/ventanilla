@@ -68,6 +68,7 @@ real even by accident.
 |---|---|---|
 | `list_obligations` | registration date, VAT regime, income tax method | every form still due, with deadlines, rendered on the page |
 | `register_invoice` | the fingerprint of your last invoice, your tax ID, your series | a numbered invoice with its Verifactu record, chained fingerprint and QR |
+| `prepare_vat_return` | every invoice of the quarter, at its own rate | modelo 303 as numbered boxes, ready to transcribe |
 | `export_submission` | the invoice's stored fingerprint and generation time | the SOAP request the AEAT expects, as a file you send yourself |
 | `ping` | — | health check used by the test suite |
 
