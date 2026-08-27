@@ -142,7 +142,16 @@ the work as far as it goes, and the person performs the act that has
 consequences.
 
 `export_submission` builds the envelope and gives it to you with the exact curl
-command to send it under your own certificate.
+command to send it under your own certificate. There is also a local command for
+it, which you run deliberately with your own certificate:
+
+```bash
+npm run submit:pre -- --cert cert.pem --key key.pem --file record.xml
+```
+
+That does not walk back the boundary. The browser still cannot send, nothing in
+it runs in a page, the preproduction endpoint is fixed, and it refuses to send an
+envelope that names production at all.
 
 ## Running it
 
