@@ -2,7 +2,7 @@ import { text, type ToolDefinition } from '../lib/webmcp';
 import { getMode, getProfile, isProfileComplete, listInvoices } from '../lib/db';
 import { modeNotice } from '../lib/mode';
 import {
-  buildSubmissionEnvelope, submissionInstructions, ENDPOINTS,
+  buildSubmissionEnvelope, submissionInstructions, TEST_ENDPOINT,
   isExemptionCode, isNotSubjectCode, EXEMPTION_CODES, type TaxTreatment,
 } from '../lib/soap';
 import { renderSubmission } from '../lib/render';
@@ -108,14 +108,14 @@ export const exportSubmission: ToolDefinition<Input> = {
       invoiceId: invoice.id,
       filename,
       envelope,
-      endpoint: ENDPOINTS.test,
-      instructions: submissionInstructions(ENDPOINTS.test, filename),
+      endpoint: TEST_ENDPOINT,
+      instructions: submissionInstructions(TEST_ENDPOINT, filename),
     });
 
     return text(
       `${modeNotice(mode)} Submission for ${invoice.id} is ready and on screen, with a download button.\n`
       + `File: ${filename}\n`
-      + `Endpoint: ${ENDPOINTS.test} (AEAT external test environment)\n`
+      + `Endpoint: ${TEST_ENDPOINT} (AEAT external test environment)\n`
       + `Fingerprint carried: ${invoice.hash}\n`
       + `Generated at: ${invoice.generatedAt} — the same instant that went into the fingerprint\n\n`
       + 'Ventanilla cannot send this and neither can any web page: the endpoint returns no CORS '

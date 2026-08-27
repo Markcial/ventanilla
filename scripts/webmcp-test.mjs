@@ -183,7 +183,7 @@ try {
     await check('registering an invoice produces a fingerprint and a QR', async c => {
       await switchMode(c, 'demo');
       const body = c.text(await c.invoke('register_invoice', {
-        clientName: 'Astillero Ribera SL', clientNif: 'B12345674',
+        clientName: 'Astillero Ribera SL', clientNif: '89890002E',
         baseEuros: 800, vatRate: 21, issuedOn: '2026-09-25',
       }));
       assert(/Fingerprint: [0-9A-F]{64}/.test(body), `no 64-char uppercase hex fingerprint:\n${body}`);
@@ -196,13 +196,13 @@ try {
       // The property the whole Verifactu mechanism rests on. If this stops holding,
       // the records are decorative.
       const first = c.text(await c.invoke('register_invoice', {
-        clientName: 'Chain One', clientNif: 'B11111111', baseEuros: 100, issuedOn: '2026-09-26',
+        clientName: 'Chain One', clientNif: '89890003T', baseEuros: 100, issuedOn: '2026-09-26',
       }));
       const firstHash = /Fingerprint: ([0-9A-F]{64})/.exec(first)?.[1];
       assert(firstHash, `no fingerprint in first result:\n${first}`);
 
       const second = c.text(await c.invoke('register_invoice', {
-        clientName: 'Chain Two', clientNif: 'B22222222', baseEuros: 200, issuedOn: '2026-09-27',
+        clientName: 'Chain Two', clientNif: '89890004R', baseEuros: 200, issuedOn: '2026-09-27',
       }));
       const chainedTo = /Chained to: ([0-9A-F]{64})/.exec(second)?.[1];
       assert(chainedTo === firstHash,
@@ -212,7 +212,7 @@ try {
     await check('registering an invoice puts it on the page with its QR', async c => {
       const before = Number(await c.evaluate(`document.getElementById('invoices').dataset.count`));
       await c.invoke('register_invoice', {
-        clientName: 'Visible SL', clientNif: 'B33333333', baseEuros: 50, issuedOn: '2026-09-28',
+        clientName: 'Visible SL', clientNif: '89890005W', baseEuros: 50, issuedOn: '2026-09-28',
       });
       const after = Number(await c.evaluate(`document.getElementById('invoices').dataset.count`));
       assert(after === before + 1, `invoice count went ${before} -> ${after}`);
@@ -225,7 +225,7 @@ try {
 
     await check('an invalid VAT rate is refused rather than guessed', async c => {
       const body = c.text(await c.invoke('register_invoice', {
-        clientName: 'Bad Rate', clientNif: 'B44444444', baseEuros: 100, vatRate: 7,
+        clientName: 'Bad Rate', clientNif: '89890006A', baseEuros: 100, vatRate: 7,
       }));
       assert(/not a Spanish VAT rate/i.test(body), `7% was not refused:\n${body}`);
     })(client);
@@ -233,7 +233,7 @@ try {
     await check('real mode will not invent an identity to put on an invoice', async c => {
       await switchMode(c, 'real');
       const body = c.text(await c.invoke('register_invoice', {
-        clientName: 'Someone', clientNif: 'B55555555', baseEuros: 100,
+        clientName: 'Someone', clientNif: '89890007G', baseEuros: 100,
       }));
       assert(/cannot issue an invoice/i.test(body), `it issued one anyway:\n${body}`);
       assert(!/Fingerprint: [0-9A-F]{64}/.test(body), `it produced a record despite no identity:\n${body}`);
@@ -264,7 +264,7 @@ try {
       assert(visible, 'the deadlines panel stayed hidden after its tool ran');
 
       await c.invoke('register_invoice', {
-        clientName: 'Tab Focus SL', clientNif: 'B66666666', baseEuros: 10, issuedOn: '2026-09-29',
+        clientName: 'Tab Focus SL', clientNif: '89890008M', baseEuros: 10, issuedOn: '2026-09-29',
       });
       const onInvoices = await c.evaluate(
         `document.querySelector('[data-tab="invoices"]').getAttribute('aria-selected')`);
@@ -329,6 +329,29 @@ try {
     await check('every submission result says it is not sent', async c => {
       const body = c.text(await c.invoke('export_submission', { invoiceId: 'DEMO-2026-002' }));
       assert(/cannot send/i.test(body), `the result did not state the boundary:\n${body}`);
+    })(client);
+
+    await check('nothing generated ever names the production endpoint', async c => {
+      // Records sent to production become a real declared invoicing chain under a
+      // real tax identity. Invented invoices must not be able to reach it, so the
+      // app never names it and this asserts the whole rendered page does not either.
+      await switchMode(c, 'demo');
+      await c.invoke('export_submission', { invoiceId: 'DEMO-2026-002' });
+      const page = await c.evaluate(`document.body.innerHTML`);
+      assert(!/www1\.agenciatributaria\.gob\.es/.test(page),
+        'the production endpoint appears somewhere on the page');
+      assert(/prewww1\.aeat\.es/.test(page), 'the test endpoint is not named either — check the render');
+    })(client);
+
+    await check('every tax ID on screen comes from the AEAT test census', async c => {
+      // Sample invoices must not carry a real person or company's tax identity.
+      // An earlier version billed an invented amount to a real municipality's NIF.
+      const shown = await c.evaluate(
+        `[...document.querySelectorAll('.invoice .nif')].map(e => e.textContent.trim()).join(',')`);
+      const ids = shown.split(',').filter(Boolean);
+      assert(ids.length > 0, 'no client tax IDs rendered');
+      assert(ids.every(id => /^8989000\d[A-Z]$/.test(id)),
+        `these are outside the AEAT test block: ${ids.filter(i => !/^8989000\d[A-Z]$/.test(i))}`);
     })(client);
 
     await check('unknown tool fails loudly', async c => {

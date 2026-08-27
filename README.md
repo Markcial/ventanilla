@@ -98,6 +98,27 @@ Being precise about this matters more than looking finished.
   to private developers, or require being a registered *colaborador social*.
   Claiming otherwise would be a lie a judge could check.
 
+## Demonstrating without inventing anything real
+
+Repeating a demo means issuing the same invoices over and over. That is only safe
+if nothing about them can be mistaken for a record of something that happened.
+
+- **Only the test environment is ever named.** Records sent to the production
+  service join a real declared invoicing chain under a real tax identity. The
+  production URL is absent from the source, not merely unused, and a test asserts
+  nothing this app renders mentions that host.
+- **Sample tax IDs come from the AEAT's own test census**, the `8989000x` block
+  their published examples use — `89890001K` appears in the official QR document.
+  Check digits are computed with the real algorithm, so they are well formed and
+  identify nobody. A test asserts every tax ID on screen is in that block.
+- **Company names are invented.** An earlier version billed an invented amount to
+  "Ayuntamiento de Cadaqués" under a P-prefixed tax ID, the real format for a
+  Spanish municipality. Sample data must not put a real body's tax identity on an
+  invoice that documents nothing.
+
+The preproduction environment exists so developers can send test records with a
+real certificate and no fiscal consequences. Using it that way is what it is for.
+
 ## Why it prepares but never sends
 
 Not a policy. A browser cannot reach the tax agency, and this is checkable in

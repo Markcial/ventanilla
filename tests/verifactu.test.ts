@@ -113,7 +113,7 @@ const profile: Profile = {
 function invoice(id: string, baseCents: number, vatCents: number): Invoice {
   return {
     id, mode: 'demo', issuedOn: '2024-01-01',
-    clientName: 'Client', clientNif: 'B00000000',
+    clientName: 'Client', clientNif: '89890002E',
     baseCents, vatRate: 21, vatCents, totalCents: baseCents + vatCents,
   };
 }

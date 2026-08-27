@@ -23,11 +23,24 @@ const NS_SOAP = 'http://schemas.xmlsoap.org/soap/envelope/';
 const NS_LR = 'https://www2.agenciatributaria.gob.es/static_files/common/internet/dep/aplicaciones/es/aeat/tike/cont/ws/SuministroLR.xsd';
 const NS_SF = 'https://www2.agenciatributaria.gob.es/static_files/common/internet/dep/aplicaciones/es/aeat/tike/cont/ws/SuministroInformacion.xsd';
 
-/** From SistemaFacturacion.wsdl. Production is listed so nobody has to guess it. */
-export const ENDPOINTS = {
-  test: 'https://prewww1.aeat.es/wlpl/TIKE-CONT/ws/SistemaFacturacion/VerifactuSOAP',
-  production: 'https://www1.agenciatributaria.gob.es/wlpl/TIKE-CONT/ws/SistemaFacturacion/VerifactuSOAP',
-} as const;
+/**
+ * The AEAT external test environment, from SistemaFacturacion.wsdl.
+ *
+ * This is the only endpoint this application ever names. Records sent to the
+ * production service become part of a real declared invoicing chain under a real
+ * tax identity; records sent here have no fiscal effect, which is exactly what
+ * the environment is published for. Demonstrating with invented invoices belongs
+ * on this side of that line and nowhere else.
+ *
+ * The production URL is deliberately absent rather than merely unused. A constant
+ * sitting in the module is one autocomplete away from being sent, and a test
+ * asserts that nothing this app generates mentions the production host.
+ */
+export const TEST_ENDPOINT =
+  'https://prewww1.aeat.es/wlpl/TIKE-CONT/ws/SistemaFacturacion/VerifactuSOAP';
+
+/** Guard used by tests. Never build a request against this. */
+export const PRODUCTION_HOST = 'www1.agenciatributaria.gob.es';
 
 export const SOAP_ACTION = '';
 export const OPERATION = 'RegFactuSistemaFacturacion';
@@ -190,7 +203,7 @@ export function submissionInstructions(endpoint: string, filename: string): stri
     'Ventanilla cannot send it for you. The endpoint answers no CORS headers, and it',
     'requires mutual TLS with your certificate, which a web page cannot present.',
     '',
-    `Endpoint (AEAT external test environment):`,
+    'Endpoint (AEAT external test environment — no fiscal effect):',
     `  ${endpoint}`,
     '',
     'With your certificate exported as a PEM pair:',
@@ -202,6 +215,7 @@ export function submissionInstructions(endpoint: string, filename: string): stri
     `    ${endpoint}`,
     '',
     'The test environment accepts real certificates and has no fiscal consequences.',
-    'Point at the production endpoint only when you mean it.',
+    'Ventanilla never names the production endpoint. Sending invented invoices to it',
+    'would declare operations that did not happen, under your own tax identity.',
   ].join('\n');
 }
