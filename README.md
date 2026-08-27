@@ -234,6 +234,11 @@ The identity gap has a closing date. Under eIDAS 2 (Regulation (EU) 2024/1183),
 member states must offer an official digital wallet by 24 November 2026. When
 that lands, the same tools can prepare and the wallet can sign.
 
+## The long version
+
+[`docs/build-notes.md`](docs/build-notes.md) — what we were aiming at, what the tax
+agency said back, and the four things that cost us an afternoon each.
+
 ## License
 
 MIT
