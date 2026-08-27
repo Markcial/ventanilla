@@ -14,10 +14,13 @@ const SOFTWARE_VERSION = '0.1.0';
 /**
  * Prepare the AEAT submission and hand it over.
  *
- * The honest end of the line. A browser cannot send this — the endpoint answers
- * no CORS headers and wants a client certificate — so the tool takes the work as
- * far as it can go and leaves the act with consequences to the person, which is
- * the arrangement this whole project argues for.
+ * The end of what an agent can do alone.
+ *
+ * The envelope is prepared here and the page offers a Send button, which is an
+ * ordinary form post: a navigation, so CORS does not apply, and the browser asks
+ * which certificate to use. That prompt cannot be answered by script. The agent
+ * does everything up to it and stops, which is the arrangement this whole project
+ * argues for — now enforced by the browser rather than by our good intentions.
  */
 export const exportSubmission: ToolDefinition<Input> = {
   name: 'export_submission',
@@ -120,10 +123,10 @@ export const exportSubmission: ToolDefinition<Input> = {
       + `Endpoint: ${TEST_ENDPOINT} (AEAT external test environment)\n`
       + `Fingerprint carried: ${invoice.hash}\n`
       + `Generated at: ${invoice.generatedAt} — the same instant that went into the fingerprint\n\n`
-      + 'Ventanilla cannot send this and neither can any web page: the endpoint returns no CORS '
-      + 'headers, and it requires mutual TLS with a client certificate that fetch() cannot present. '
-      + 'The person sends it themselves, with their own certificate. That boundary is the point, '
-      + 'not a shortcoming.',
+      + 'There is a Send button on the page. It is an ordinary form post, which is a navigation '
+      + 'and so is not subject to CORS, and the browser asks which certificate to use. '
+      + 'Nothing can answer that prompt on the person\'s behalf — not this page, not an agent. '
+      + 'Do not tell them you have sent it; they send it.',
     );
   },
 };

@@ -234,8 +234,15 @@ export function renderSubmission(view: SubmissionView): void {
       </div>
       <button id="download-submission" type="button">Download ${escape(view.filename)}</button>
     </div>
-    <p class="warn">Ventanilla cannot send this. The endpoint answers no CORS headers and wants a
-      client certificate, which a web page cannot present. You send it, with your certificate.</p>
+    <p class="warn">This goes to the tax agency's test environment. It has no fiscal effect —
+      that is what the environment is published for.</p>
+
+    <form class="send" method="POST" enctype="text/plain" target="_blank" action="${escape(view.endpoint)}">
+      <input type="hidden" name="${escape(view.envelope)}" value="" />
+      <button type="submit">Send it with my certificate</button>
+      <p class="send-note">Your browser will ask which certificate to use. Nothing can answer that
+        for you — not this page, and not an agent. That prompt is the point.</p>
+    </form>
     <pre class="envelope"><code>${escape(view.envelope)}</code></pre>
     <h4>Sending it yourself</h4>
     <pre class="howto"><code>${escape(view.instructions)}</code></pre>`;

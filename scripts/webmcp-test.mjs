@@ -432,9 +432,36 @@ try {
       assert(!/<sf:TipoImpositivo>/.test(envelope), 'an exempt line should carry no rate');
     })(client);
 
-    await check('every submission result says it is not sent', async c => {
+    await check('the send form is a real form, aimed only at preproduction', async c => {
+      await switchMode(c, 'demo');
+      await c.invoke('export_submission', { invoiceId: 'DEMO-2026-002' });
+      const action = await c.evaluate(`document.querySelector('form.send')?.action ?? ''`);
+      assert(/^https:\/\/prewww1\.aeat\.es\//.test(action), `form points at "${action}"`);
+      const enc = await c.evaluate(`document.querySelector('form.send').enctype`);
+      assert(enc === 'text/plain',
+        `enctype must be text/plain or the body is percent-encoded and unparseable, got "${enc}"`);
+      const carriesEnvelope = await c.evaluate(
+        `document.querySelector('form.send input').name.includes('RegFactuSistemaFacturacion')`);
+      assert(carriesEnvelope, 'the field name does not carry the envelope');
+      const emptyValue = await c.evaluate(`document.querySelector('form.send input').value === ''`);
+      assert(emptyValue, 'the value must stay empty — anything in it lands before the closing tag');
+    })(client);
+
+    await check('nothing submits the form on the page behalf', async c => {
+      // The certificate prompt is the human's moment. A tool that could submit
+      // this form would be arranging for a person to sign without deciding to.
+      const src = await c.evaluate(
+        `[...document.querySelectorAll('script')].map(s => s.textContent).join('')`);
+      assert(!/\.submit\(\)/.test(src), 'something in the page calls form.submit()');
+      const inline = await c.evaluate(
+        `document.querySelector('form.send').getAttribute('onsubmit')`);
+      assert(!inline, 'the form has an inline submit handler');
+    })(client);
+
+    await check('every submission result names the test environment', async c => {
       const body = c.text(await c.invoke('export_submission', { invoiceId: 'DEMO-2026-002' }));
-      assert(/cannot send/i.test(body), `the result did not state the boundary:\n${body}`);
+      assert(/test environment/i.test(body), `the result did not say where it goes:\n${body}`);
+      assert(/prewww1\.aeat\.es/.test(body), `no endpoint in the result:\n${body}`);
     })(client);
 
     await check('nothing generated ever names the production endpoint', async c => {

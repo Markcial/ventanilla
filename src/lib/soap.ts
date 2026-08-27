@@ -7,14 +7,22 @@
  *   SistemaFacturacion.wsdl   — operation, soapAction and endpoints
  * all under https://www2.agenciatributaria.gob.es/static_files/common/internet/dep/aplicaciones/es/aeat/tikeV1.0/cont/ws/
  *
- * We generate the envelope and hand it to the person. We do not send it, and a
- * browser could not even if we wanted to: the endpoint answers no CORS headers
- * at all — a preflight is redirected to a 403 page — and it requires mutual TLS
- * with a client certificate, which fetch() has no way to present.
+ * We generate the envelope. A person sends it, and the browser makes sure of that.
  *
- * That is not a limitation we are working around. It is the reason this project
- * exists in the shape it does: the tax agency is reachable only by a person
- * holding a certificate, so the agent prepares and the person submits.
+ * Script cannot reach this endpoint. Measured with a valid certificate: OPTIONS
+ * returns 403 "Request forbidden by administrative rules" and no response carries
+ * a single Access-Control-* header, so fetch() is walled off whatever it sends.
+ *
+ * A form post is not walled off, because it is a navigation and CORS does not
+ * apply to navigations. The service also turns out to ignore Content-Type and
+ * SOAPAction entirely — text/plain with neither header is parsed the same as
+ * text/xml — and it tolerates the trailing "=" that enctype="text/plain" appends,
+ * though not a prefix before the declaration. So a form whose field name is the
+ * whole envelope, with an empty value, submits successfully.
+ *
+ * Which leaves exactly one thing in the way, and it is the right one: the browser
+ * asks which certificate to use, and nothing can answer that for the person. The
+ * boundary this project argues for is enforced by the browser, not by us.
  */
 import type { Invoice, Profile } from './types';
 import { formatAmount } from './verifactu';
