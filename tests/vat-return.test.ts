@@ -68,11 +68,24 @@ describe('buildVatReturn', () => {
     expect(at10.quotaCents).toBe(8900);
   });
 
-  it('leaves a zero-rated invoice out of the rate rows and says why', () => {
+  it('leaves a zero-rated invoice out of the rate rows', () => {
     const vat = buildVatReturn(q3, 2026, 3);
     expect(vat.excluded.map(e => e.id)).toContain('A/5');
-    expect(vat.excluded[0].reason).toMatch(/exempt/i);
     expect(vat.rows.some(r => r.vatRate === 0)).toBe(false);
+  });
+
+  it('names the recorded reason when the invoice has one', () => {
+    const withReason = [{ ...q3[4], vatTreatment: 'E1' }];
+    const vat = buildVatReturn(withReason, 2026, 3);
+    expect(vat.excluded[0].reason).toMatch(/E1/);
+    expect(vat.excluded[0].reason).toMatch(/own boxes/i);
+  });
+
+  it('says a zero-rated invoice cannot be placed at all when it records no reason', () => {
+    // register_invoice will not create this state, but a record from before that
+    // was enforced can still turn up, and it must not be silently dropped.
+    const vat = buildVatReturn(q3, 2026, 3);
+    expect(vat.excluded[0].reason).toMatch(/does not record why/i);
   });
 
   it('totals output VAT into box 27', () => {

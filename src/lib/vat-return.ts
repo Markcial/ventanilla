@@ -86,8 +86,10 @@ export function buildVatReturn(
     if (invoice.vatRate === 0) {
       excluded.push({
         id: invoice.id,
-        reason: 'charges no VAT — exempt and outside-the-scope operations go in different boxes, '
-          + 'and which one applies cannot be read off the amount',
+        reason: invoice.vatTreatment
+          ? `charges no VAT (${invoice.vatTreatment}) — exempt and outside-the-scope operations `
+            + 'belong in their own boxes, which this return does not fill in'
+          : 'charges no VAT and does not record why, so it cannot be placed in any box',
       });
       continue;
     }

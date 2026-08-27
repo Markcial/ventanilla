@@ -36,9 +36,9 @@ export const exportSubmission: ToolDefinition<Input> = {
       vatTreatment: {
         type: 'string',
         description:
-          'Only for invoices with no VAT charged, where the record must say why. '
-          + 'E1 to E8 for an exempt operation, or N1 or N2 for one outside the scope of VAT. '
-          + 'Ask the person which applies; it cannot be inferred from the amount.',
+          'Rarely needed. Invoices already record why they charge no VAT, so this only '
+          + 'applies to older records made before that was stored, or to override one. '
+          + 'E1 to E8 for an exempt operation, or N1 or N2 for one outside the scope of VAT.',
         enum: ['E1', 'E2', 'E3', 'E4', 'E5', 'E6', 'E7', 'E8', 'N1', 'N2'],
       },
     },
@@ -71,26 +71,28 @@ export const exportSubmission: ToolDefinition<Input> = {
         + 'valid submission cannot be rebuilt from it. Register it again.');
     }
 
-    // A zero-rated line is either exempt or outside the scope of VAT, and only the
-    // person issuing it knows which. Guessing would misclassify the operation to
-    // the tax agency, so the tool stops and asks instead.
+    // The invoice records why it charges no VAT, because register_invoice asks at
+    // the moment the invoice is created. Only records made before that was stored
+    // reach the branch that has to ask again.
+    const stated = input.vatTreatment ?? invoice.vatTreatment;
+
     let taxTreatment: TaxTreatment;
     if (invoice.vatRate > 0) {
       taxTreatment = { kind: 'subject' };
-    } else if (!input.vatTreatment) {
+    } else if (!stated) {
       return text(
         `${modeNotice(mode)} ${invoice.id} charges no VAT, so the record has to say why, and that `
         + 'cannot be worked out from the amount. Ask the person whether the operation is exempt '
         + `(${EXEMPTION_CODES.join(', ')}) or outside the scope of VAT (N1, N2), then call this `
         + 'tool again with vatTreatment set. Guessing would misclassify the operation to the tax agency.',
       );
-    } else if (isExemptionCode(input.vatTreatment)) {
-      taxTreatment = { kind: 'exempt', code: input.vatTreatment };
-    } else if (isNotSubjectCode(input.vatTreatment)) {
-      taxTreatment = { kind: 'notSubject', code: input.vatTreatment };
+    } else if (isExemptionCode(stated)) {
+      taxTreatment = { kind: 'exempt', code: stated };
+    } else if (isNotSubjectCode(stated)) {
+      taxTreatment = { kind: 'notSubject', code: stated };
     } else {
       return text(
-        `${modeNotice(mode)} "${input.vatTreatment}" is not a VAT treatment code. `
+        `${modeNotice(mode)} "${stated}" is not a VAT treatment code. `
         + `Use one of ${EXEMPTION_CODES.join(', ')}, N1 or N2.`);
     }
 

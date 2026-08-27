@@ -47,7 +47,7 @@ function euros(amount: number): number {
 
 function invoice(
   n: number, issuedOn: string, clientName: string, clientNif: string,
-  base: number, vatRate: number,
+  base: number, vatRate: number, vatTreatment?: string,
 ): Invoice {
   const baseCents = euros(base);
   const vatCents = Math.round(baseCents * vatRate / 100);
@@ -61,6 +61,7 @@ function invoice(
     vatRate,
     vatCents,
     totalCents: baseCents + vatCents,
+    ...(vatTreatment ? { vatTreatment } : {}),
   };
 }
 
@@ -69,6 +70,8 @@ export const DEMO_INVOICES: Invoice[] = [
   invoice(2, '2026-07-28', 'Cooperativa La Vega',    '89890003T', 1150.5, 21),
   invoice(3, '2026-08-11', 'Editorial Marisma SL',   '89890004R',  890,   10),
   invoice(4, '2026-08-22', 'Naviera Tramuntana SL',  '89890005W', 3200,   21),
-  invoice(5, '2026-09-05', 'Consultorio Sant Jordi', '89890006A', 1500,    0),
+  // Exempt, with the reason recorded — a zero-rated invoice without one is not a
+  // state this app lets you create.
+  invoice(5, '2026-09-05', 'Consultorio Sant Jordi', '89890006A', 1500,    0, 'E1'),
   invoice(6, '2026-09-19', 'Taller Bonmatí SL',      '89890007G',  640,   21),
 ];

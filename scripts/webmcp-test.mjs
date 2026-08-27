@@ -223,6 +223,57 @@ try {
       assert(shown.includes('Visible SL'), `new invoice not on screen: "${shown}"`);
     })(client);
 
+    await check('omitting the rate gives the ordinary 21%', async c => {
+      // The rate is optional, and the common case has to be what you get for free.
+      const body = c.text(await c.invoke('register_invoice', {
+        clientName: 'Default Rate SL', clientNif: '89890002E', baseEuros: 100, issuedOn: '2026-08-27' }));
+      assert(/VAT 21%: 21\.00/.test(body), `omitting vatRate did not give 21%:\n${body}`);
+    })(client);
+
+    await check('the rate enum leads with the ordinary case', async c => {
+      // An agent filling in every optional field takes the first value. Leading
+      // with 0 produced exactly that: invoices with no VAT nobody asked for.
+      const tool = c.listTools().find(t => t.name === 'register_invoice');
+      const values = tool.inputSchema.properties.vatRate.enum;
+      assert(values[0] === 21, `the enum leads with ${values[0]}, not 21: ${values}`);
+      assert(values.at(-1) === 0, `0 should be last, got ${values}`);
+    })(client);
+
+    await check('a zero-VAT invoice is not created without a reason', async c => {
+      // Asked here rather than at submission time: this is when the person is
+      // thinking about this invoice.
+      const before = Number(await c.evaluate(`document.getElementById('invoices').dataset.count`));
+      const body = c.text(await c.invoke('register_invoice', {
+        clientName: 'No Reason SL', clientNif: '89890003T', baseEuros: 100,
+        vatRate: 0, issuedOn: '2026-08-27' }));
+      const after = Number(await c.evaluate(`document.getElementById('invoices').dataset.count`));
+      assert(after === before, 'a zero-VAT invoice with no reason was created anyway');
+      assert(/without vatRate/.test(body),
+        `it did not suggest that 0% may have been a mistake:\n${body}`);
+      assert(/E1, E2/.test(body) && /N1, N2/.test(body), `it did not list the codes:\n${body}`);
+    })(client);
+
+    await check('a zero-VAT invoice records the reason it was given', async c => {
+      const body = c.text(await c.invoke('register_invoice', {
+        clientName: 'Exempt SL', clientNif: '89890004R', baseEuros: 100,
+        vatRate: 0, vatTreatment: 'N1', issuedOn: '2026-08-27' }));
+      assert(/\(N1\)/.test(body), `the reason is not shown back:\n${body}`);
+      const id = /Invoice (\S+) registered/.exec(body)?.[1];
+      assert(id, `no serial in:\n${body}`);
+      const exported = c.text(await c.invoke('export_submission', { invoiceId: id }));
+      assert(!/ask the person/i.test(exported), `export asked again:\n${exported}`);
+      const envelope = await c.evaluate(`document.querySelector('#submission .envelope code').textContent`);
+      assert(/<sf:CalificacionOperacion>N1<\/sf:CalificacionOperacion>/.test(envelope),
+        'the recorded treatment did not reach the envelope');
+    })(client);
+
+    await check('a bad treatment code is refused at registration', async c => {
+      const body = c.text(await c.invoke('register_invoice', {
+        clientName: 'Bad Code SL', clientNif: '89890005W', baseEuros: 100,
+        vatRate: 0, vatTreatment: 'X9', issuedOn: '2026-08-27' }));
+      assert(/not a VAT treatment code/.test(body), `"X9" was accepted:\n${body}`);
+    })(client);
+
     await check('an invalid VAT rate is refused rather than guessed', async c => {
       const body = c.text(await c.invoke('register_invoice', {
         clientName: 'Bad Rate', clientNif: '89890006A', baseEuros: 100, vatRate: 7,
@@ -369,14 +420,16 @@ try {
         `generation time was not the stored one:\n${/FechaHoraHusoGenRegistro>[^<]*/.exec(envelope)?.[0]}`);
     })(client);
 
-    await check('a zero-VAT invoice is not classified by guesswork', async c => {
-      // Exempt and outside-the-scope are different things to the tax agency and
-      // cannot be told apart from the amount.
+    await check('an exempt invoice exports from what it already records', async c => {
+      // The reason is captured when the invoice is created, so submitting it does
+      // not interrogate someone about an invoice they filed away days ago.
       const body = c.text(await c.invoke('export_submission', { invoiceId: 'DEMO-2026-005' }));
-      assert(/E1, E2/.test(body) && /N1, N2/.test(body), `it did not ask which applies:\n${body}`);
-      const withCode = c.text(await c.invoke('export_submission', {
-        invoiceId: 'DEMO-2026-005', vatTreatment: 'E1' }));
-      assert(/on screen/.test(withCode), `it refused even with a code given:\n${withCode}`);
+      assert(/on screen/.test(body), `it refused a recorded exempt invoice:\n${body}`);
+      assert(!/ask the person/i.test(body), `it asked again despite the reason being recorded:\n${body}`);
+      const envelope = await c.evaluate(`document.querySelector('#submission .envelope code').textContent`);
+      assert(/<sf:OperacionExenta>E1<\/sf:OperacionExenta>/.test(envelope),
+        'the recorded exemption did not reach the envelope');
+      assert(!/<sf:TipoImpositivo>/.test(envelope), 'an exempt line should carry no rate');
     })(client);
 
     await check('every submission result says it is not sent', async c => {

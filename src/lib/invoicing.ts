@@ -26,6 +26,8 @@ export interface DraftInvoice {
   baseEuros: number;
   vatRate: VatRate;
   issuedOn: string;
+  /** Required when the rate is 0; meaningless otherwise. */
+  vatTreatment?: string;
 }
 
 /**
@@ -57,6 +59,7 @@ export function buildInvoice(draft: DraftInvoice, serial: string, mode: Mode): I
     vatRate: draft.vatRate,
     vatCents,
     totalCents: baseCents + vatCents,
+    ...(draft.vatRate === 0 && draft.vatTreatment ? { vatTreatment: draft.vatTreatment } : {}),
   };
 }
 

@@ -33,6 +33,15 @@ export interface Invoice {
   hash?: string;
   previousHash?: string;
   /**
+   * Why no VAT was charged: E1-E8 for an exempt operation, N1 or N2 for one
+   * outside the scope. Recorded when the invoice is created, because that is
+   * when the person is thinking about this invoice — asking at submission time
+   * means asking about something they filed away days ago.
+   *
+   * Absent on invoices that charge VAT, where the question does not arise.
+   */
+  vatTreatment?: string;
+  /**
    * The exact instant that went into the fingerprint.
    *
    * Stored rather than recomputed: the submission envelope has to carry the same
