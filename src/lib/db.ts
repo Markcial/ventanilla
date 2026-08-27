@@ -97,8 +97,21 @@ export async function getProfile(mode: Mode): Promise<Profile> {
   return (found ?? (mode === 'demo' ? DEMO_PROFILE : EMPTY_REAL_PROFILE)) as Profile;
 }
 
+/**
+ * Spanish tax IDs are uppercase. The check letter is computed as one and the
+ * agency's census holds it as one, so a lowercase letter typed into a form is
+ * the same identity written wrong — and it reaches the tax agency as a mismatch
+ * against the certificate that signs the submission.
+ *
+ * Normalised on the way in, because a fingerprint is computed over whatever is
+ * stored: fixing it later changes the hash and invalidates the record.
+ */
+export function normaliseNif(nif: string): string {
+  return nif.trim().toUpperCase().replace(/[\s-]/g, '');
+}
+
 export async function saveProfile(profile: Profile): Promise<void> {
-  await (await db()).put('profiles', profile);
+  await (await db()).put('profiles', { ...profile, nif: normaliseNif(profile.nif) });
 }
 
 /** Only ever returns invoices belonging to the mode asked for. */

@@ -7,6 +7,7 @@
 import type { Invoice, Profile } from './types';
 import type { Mode } from './mode';
 import { buildAltaRecord, formatAmount, formatInvoiceDate, buildQrUrl, type AltaRecord } from './verifactu';
+import { normaliseNif } from './db';
 
 export const VAT_RATES = [0, 4, 10, 21] as const;
 export type VatRate = typeof VAT_RATES[number];
@@ -53,8 +54,8 @@ export function buildInvoice(draft: DraftInvoice, serial: string, mode: Mode): I
     id: serial,
     mode,
     issuedOn: draft.issuedOn,
-    clientName: draft.clientName,
-    clientNif: draft.clientNif,
+    clientName: draft.clientName.trim(),
+    clientNif: normaliseNif(draft.clientNif),
     baseCents,
     vatRate: draft.vatRate,
     vatCents,
