@@ -138,9 +138,10 @@ real certificates and has no fiscal effect, which is what it is published for.
 Two things that took getting there, both worth knowing before anyone tries:
 
 - **A lowercase tax ID passes the schema and fails the agency.** `NIFType`
-  constrains only the length to nine characters, so `89890001k` validates
-  perfectly and then does not match the certificate signing the submission.
-  Tax IDs are normalised on the way in now, before anything is hashed.
+  constrains only the length to nine characters, so a lowercase check letter
+  validates perfectly and then does not match the certificate signing the
+  submission. Tax IDs are normalised on the way in now, before anything is
+  hashed — after would be too late, since the fingerprint covers what was stored.
 - **Recipient tax IDs are checked against the real census, in preproduction
   too.** The invented ones in the sample data come back as error 1239, "El NIF no
   está identificado en el censo de la AEAT". Being safe to demonstrate with and

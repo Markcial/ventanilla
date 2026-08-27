@@ -22,7 +22,7 @@ describe('normaliseNif', () => {
     expect(normaliseNif('8989 0001 K')).toBe('89890001K');
   });
   it('leaves a well formed value alone', () => {
-    expect(normaliseNif('89890001K')).toBe('89890001K');
+    expect(normaliseNif('B12345674')).toBe('B12345674');
   });
   it('keeps the result nine characters for a valid input', () => {
     expect(normaliseNif(' 89890001k ')).toHaveLength(9);
