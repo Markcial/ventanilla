@@ -12,7 +12,8 @@
     "test": "vitest run",
     "test:webmcp": "node scripts/webmcp-test.mjs",
     "test:schema": "node scripts/validate-submission.mjs",
-    "submit:pre": "node scripts/submit-to-pre.mjs"
+    "submit:pre": "node scripts/submit-to-pre.mjs",
+    "test:pages": "node scripts/test-base-path.mjs"
   },
   "dependencies": {
     "astro": "^5.0.0",

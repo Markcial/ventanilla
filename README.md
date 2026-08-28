@@ -234,6 +234,24 @@ The identity gap has a closing date. Under eIDAS 2 (Regulation (EU) 2024/1183),
 member states must offer an official digital wallet by 24 November 2026. When
 that lands, the same tools can prepare and the wallet can sign.
 
+## Deploying it
+
+The build takes a base path, because a project site on GitHub Pages is served from a
+subdirectory:
+
+```bash
+BASE_PATH=/ventanilla/ npm run build
+npm run test:pages
+```
+
+That second command is not ceremony. With a wrong base path the HTML still loads and
+its module does not, so WebMCP never registers and the page looks merely broken rather
+than broken in a way anyone would think to diagnose — and that only shows up once it is
+live. It serves the build from the subdirectory, drives it with a real browser, and
+checks the tools registered and nothing points outside the base.
+
+Pushing to `main` deploys via GitHub Actions.
+
 ## The long version
 
 [`docs/build-notes.md`](docs/build-notes.md) — what we were aiming at, what the tax
