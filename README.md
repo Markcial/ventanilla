@@ -10,6 +10,35 @@ files nothing.
 
 Built for the [WebMCP Challenge](https://webmcp.devpost.com/).
 
+## Prior art
+
+Commercial products are appearing in this space. [YoFacturo
+MCP](https://www.yofacturo.es/mcp) bills itself as the first Verifactu-native
+invoicing MCP in Spain, and its diagram is `your AI → their MCP → AEAT`: the
+signing, the chaining and the submission all happen on their side.
+
+It is a good product for their customers, and it works the only way that
+architecture can. To sign on your behalf, a service has to be in a position to
+sign on your behalf. That is what obliges an account, a subscription, and a
+company holding your tax ID and your taxable base.
+
+Ventanilla is not trying to be a cheaper version of that. It is the same problem
+solved without the custody:
+
+|  | A hosted MCP service | Ventanilla |
+|---|---|---|
+| Where your records live | their servers | your browser |
+| Who signs | they do, for you | you do, with your certificate |
+| To start | an account | open a URL |
+| To run it | someone pays for servers | there are none |
+
+The last row is the point. **There is no backend to host, so there is nothing to
+charge for and nothing to sign up for** — not a pricing decision, a consequence of
+where the data lives. And because the tools are a few hundred lines that register
+on `document.modelContext`, any Spanish invoicing site can adopt them directly.
+MIT licensed, so please do: this is more useful as a reference implementation than
+as a product.
+
 ## Why this is a WebMCP project and not an MCP server
 
 Spain has no open identity APIs. Cl@ve is closed to private developers, and acting
