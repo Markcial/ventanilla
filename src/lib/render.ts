@@ -141,7 +141,10 @@ export async function renderInvoices(invoices: Invoice[], issuerNif: string, hig
           </dl>
           ${inv.hash ? `<p class="hash"><span>Fingerprint</span><code>${inv.hash}</code></p>` : ''}
         </div>
-        ${qr ? `<figure class="qr">${qr}<figcaption>QR tributario</figcaption></figure>` : ''}
+        <div class="invoice-side">
+          ${qr ? `<figure class="qr">${qr}<figcaption>QR tributario</figcaption></figure>` : ''}
+          ${inv.hash ? `<button type="button" class="prepare" data-prepare="${escape(inv.id)}">Prepare submission</button>` : ''}
+        </div>
       </article>`;
   }));
 

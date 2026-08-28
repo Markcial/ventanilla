@@ -26,6 +26,7 @@ jobs:
       - run: npm ci
       # Unit tests are pure functions and run anywhere. The integration and schema
       # suites need a real Chrome with the WebMCP trial, so they stay local.
+      - run: npm run typecheck
       - run: npm test
       - run: npm run build
         env:

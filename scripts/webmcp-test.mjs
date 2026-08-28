@@ -248,7 +248,7 @@ try {
         vatRate: 0, issuedOn: '2026-08-27' }));
       const after = Number(await c.evaluate(`document.getElementById('invoices').dataset.count`));
       assert(after === before, 'a zero-VAT invoice with no reason was created anyway');
-      assert(/without vatRate/.test(body),
+      assert(/leave the rate out|without vatRate/.test(body),
         `it did not suggest that 0% may have been a mistake:\n${body}`);
       assert(/E1, E2/.test(body) && /N1, N2/.test(body), `it did not list the codes:\n${body}`);
     })(client);
@@ -286,7 +286,8 @@ try {
       const body = c.text(await c.invoke('register_invoice', {
         clientName: 'Someone', clientNif: '89890007G', baseEuros: 100,
       }));
-      assert(/cannot issue an invoice/i.test(body), `it issued one anyway:\n${body}`);
+      assert(/not registered/i.test(body) && /name or tax ID/i.test(body),
+        `it issued one anyway:\n${body}`);
       assert(!/Fingerprint: [0-9A-F]{64}/.test(body), `it produced a record despite no identity:\n${body}`);
       await switchMode(c, 'demo');
     })(client);
@@ -485,6 +486,77 @@ try {
       assert(ids.length > 0, 'no client tax IDs rendered');
       assert(ids.every(id => /^8989000\d[A-Z]$/.test(id)),
         `these are outside the AEAT test block: ${ids.filter(i => !/^8989000\d[A-Z]$/.test(i))}`);
+    })(client);
+
+    await check('a person can issue an invoice without an agent', async c => {
+      // If the agent could do something the person cannot, the person would not
+      // really be the one in charge.
+      await switchMode(c, 'demo');
+      const before = Number(await c.evaluate(`document.getElementById('invoices').dataset.count`));
+      await c.evaluate(`document.getElementById('open-new-invoice').click()`);
+      const open = await c.evaluate(`document.getElementById('new-invoice').open`);
+      assert(open, 'the New invoice dialog did not open');
+
+      await c.evaluate(`(() => {
+        const f = document.getElementById('new-invoice-form');
+        f.clientName.value = 'By Hand SL';
+        f.clientNif.value = '89890003T';
+        f.baseEuros.value = '300';
+        f.issuedOn.value = '2026-08-28';
+      })()`);
+      await c.evaluate(`document.getElementById('save-new-invoice').click()`);
+      await settle(700);
+
+      const after = Number(await c.evaluate(`document.getElementById('invoices').dataset.count`));
+      assert(after === before + 1, `invoice count went ${before} -> ${after}`);
+      const shown = await c.evaluate(
+        `[...document.querySelectorAll('.invoice .client')].map(e => e.textContent).join('|')`);
+      assert(shown.includes('By Hand SL'), `the hand-written invoice is not on screen: ${shown}`);
+      const closed = await c.evaluate(`!document.getElementById('new-invoice').open`);
+      assert(closed, 'the dialog stayed open after saving');
+    })(client);
+
+    await check('the form refuses what the tool refuses, in the same words', async c => {
+      await c.evaluate(`document.getElementById('open-new-invoice').click()`);
+      await c.evaluate(`(() => {
+        const f = document.getElementById('new-invoice-form');
+        f.clientName.value = 'Zero SL';
+        f.clientNif.value = '89890004R';
+        f.baseEuros.value = '100';
+        f.vatRate.value = '0';
+        f.vatRate.dispatchEvent(new Event('change'));
+      })()`);
+      const asks = await c.evaluate(`!document.getElementById('treatment-field').hidden`);
+      assert(asks, 'choosing 0% did not reveal the reason field');
+
+      await c.evaluate(`document.getElementById('save-new-invoice').click()`);
+      await settle(500);
+      const err = await c.evaluate(`document.getElementById('new-invoice-error').textContent`);
+      assert(/exempt/i.test(err) && /outside the scope/i.test(err),
+        `the refusal did not explain itself: "${err}"`);
+      await c.evaluate(`document.getElementById('cancel-new-invoice').click()`);
+    })(client);
+
+    await check('a person can work out the VAT return without an agent', async c => {
+      await c.evaluate(`document.querySelector('[data-tab="vat-return"]').click()`);
+      await c.evaluate(`(() => {
+        const f = document.getElementById('pick-quarter');
+        f.quarter.value = '3'; f.year.value = '2026';
+        f.dispatchEvent(new Event('submit', { cancelable: true }));
+      })()`);
+      await settle(500);
+      const boxes = Number(await c.evaluate(`document.getElementById('vat-return').dataset.boxes`));
+      assert(boxes > 10, `only ${boxes} boxes rendered from the picker`);
+    })(client);
+
+    await check('a person can prepare a submission without an agent', async c => {
+      await c.evaluate(`document.querySelector('[data-tab="invoices"]').click()`);
+      await c.evaluate(`document.querySelector('[data-prepare]').click()`);
+      await settle(600);
+      const envelope = await c.evaluate(
+        `document.querySelector('#submission .envelope code')?.textContent ?? ''`);
+      assert(envelope.includes('RegFactuSistemaFacturacion'),
+        'the Prepare button produced no envelope');
     })(client);
 
     await check('unknown tool fails loudly', async c => {

@@ -67,6 +67,17 @@ in the already-authenticated tab, every record stays in IndexedDB, and each tool
 changes the page the person is looking at — so the confirmation is the document
 itself, not a summary they have to take on trust.
 
+## Everything the agent can do, you can do
+
+There is a New invoice form, a quarter picker for the VAT return, and a Prepare button
+on every invoice. They are not a parallel implementation: the tools and the buttons
+call the same functions in `src/lib/actions.ts`, and refuse the same things in the same
+words.
+
+That is not only for people without an agent, though the page has to work for them too.
+It is what keeps the person in charge. If an agent could do something you could not,
+you would not really be the one deciding — you would be asking.
+
 ## What every tool has to earn
 
 A capability only becomes a tool if all three hold:

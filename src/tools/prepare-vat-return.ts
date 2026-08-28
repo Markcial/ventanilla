@@ -1,7 +1,8 @@
 import { text, type ToolDefinition } from '../lib/webmcp';
-import { getMode, getProfile, isProfileComplete, listInvoices, today } from '../lib/db';
 import { modeNotice } from '../lib/mode';
-import { buildVatReturn, casillas, quarterOf } from '../lib/vat-return';
+import { today } from '../lib/db';
+import { quarterOf } from '../lib/vat-return';
+import { computeVatReturn } from '../lib/actions';
 import { renderVatReturn } from '../lib/render';
 
 interface Input { quarter?: number; year?: number }
@@ -12,14 +13,11 @@ export const PRE_303_FORM = 'https://prewww2.aeat.es/wlpl/A303-FWME/E2026/OPEN/i
 /**
  * Work out the quarterly VAT return from the invoices already recorded.
  *
- * Needs state no chatbot has — every invoice of the quarter, at its own rate —
- * produces a document, and the person checks the boxes against the invoices in
- * front of them before typing them into the tax agency's form.
+ * It stops at the boxes because that is where the channel stops: since 2023 the
+ * model is filed through a web form and there is no file format for the current
+ * year, so a person transcribes it and signs.
  *
- * It stops at the boxes. Since 2023 the model is filed through a web form and
- * there is no file format for the current year, so nothing here can be uploaded:
- * a person transcribes it and signs. That is the same boundary as everywhere
- * else in this app, arrived at from a different direction.
+ * Shares lib/actions with the page's own Work it out button.
  */
 export const prepareVatReturn: ToolDefinition<Input> = {
   name: 'prepare_vat_return',
@@ -38,43 +36,28 @@ export const prepareVatReturn: ToolDefinition<Input> = {
   },
   annotations: { readOnlyHint: true },
   execute: async (input = {} as Input) => {
-    const mode = await getMode();
-    const profile = await getProfile(mode);
-
-    if (!isProfileComplete(profile)) {
-      return text(`${modeNotice(mode)} No return can be worked out: this profile has no name or tax ID.`);
-    }
-    if (profile.vatRegime !== 'general') {
-      return text(
-        `${modeNotice(mode)} This profile is not on the general VAT regime, and only the general `
-        + 'regime is computed here.');
-    }
-
     const now = today();
     const year = input.year ?? Number(now.slice(0, 4));
     const quarter = (input.quarter ?? Math.max(1, quarterOf(now) - 1)) as 1 | 2 | 3 | 4;
 
-    const invoices = await listInvoices(mode);
-    const vat = buildVatReturn(invoices, year, quarter);
-    const boxes = casillas(vat);
+    const result = await computeVatReturn(year, quarter);
+    if (!result.ok) return text(`${modeNotice(result.mode)} ${result.reason}`);
 
-    renderVatReturn({ vat, boxes, formUrl: PRE_303_FORM, invoiceCount: invoices.length });
+    const { vat, boxes, invoiceCount } = result.value;
+    renderVatReturn({ vat, boxes, formUrl: PRE_303_FORM, invoiceCount });
 
     const money = (cents: number) => (cents / 100).toFixed(2);
-    const lines = boxes.map(b => `  [${b.number}] ${b.label}: ${b.value}`);
-
     return text(
-      `${modeNotice(mode)} Modelo 303, ${vat.period} ${year}, on screen and ready to transcribe.\n`
+      `${modeNotice(result.mode)} Modelo 303, ${vat.period} ${year}, on screen and ready to transcribe.\n`
       + `${vat.rows.length} rate row(s) from the invoices of that quarter.\n\n`
-      + `${lines.join('\n')}\n\n`
+      + `${boxes.map(b => `  [${b.number}] ${b.label}: ${b.value}`).join('\n')}\n\n`
       + `Result: ${money(vat.resultCents)} EUR to pay.\n\n`
       + (vat.excluded.length
-        ? `Left out:\n${vat.excluded.map(e => `  ${e.id} — ${e.reason}`).join('\n')}\n\n`
-        : '')
+        ? `Left out:\n${vat.excluded.map(e => `  ${e.id} — ${e.reason}`).join('\n')}\n\n` : '')
       + `What this return does not know:\n${vat.caveats.map(c => `  - ${c}`).join('\n')}\n\n`
-      + `Since 2023 the model is filed through a web form and there is no file format for the `
+      + 'Since 2023 the model is filed through a web form and there is no file format for the '
       + `current year, so this cannot be uploaded. Transcribe the boxes into ${PRE_303_FORM} `
-      + `— the AEAT preproduction form, which has no fiscal effect — and sign with your certificate.`,
+      + '— the AEAT preproduction form, which has no fiscal effect — and sign with your certificate.',
     );
   },
 };

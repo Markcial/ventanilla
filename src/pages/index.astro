@@ -47,7 +47,11 @@
 
     <main>
       <section id="panel-invoices" data-panel="invoices" role="tabpanel" aria-labelledby="tab-invoices">
-        <p class="prompt">Say to your agent: <em>“invoice Astillero Ribera 800 euros plus VAT”</em></p>
+        <div class="panel-head">
+          <p class="prompt">Say to your agent: <em>“invoice Astillero Ribera 800 euros plus VAT”</em>
+            — or do it yourself.</p>
+          <button id="open-new-invoice" type="button">New invoice</button>
+        </div>
         <div id="invoices" data-count="0"><p class="empty">No invoices yet.</p></div>
       </section>
 
@@ -62,7 +66,20 @@
       </section>
 
       <section id="panel-vat-return" data-panel="vat-return" role="tabpanel" hidden>
-        <p class="prompt">Say to your agent: <em>“work out my VAT return for last quarter”</em></p>
+        <div class="panel-head">
+          <p class="prompt">Say to your agent: <em>“work out my VAT return for last quarter”</em>
+            — or pick a quarter.</p>
+          <form id="pick-quarter" class="picker">
+            <label>Quarter
+              <select name="quarter">
+                <option value="1">1T</option><option value="2">2T</option>
+                <option value="3" selected>3T</option><option value="4">4T</option>
+              </select>
+            </label>
+            <label>Year<input name="year" type="number" min="2000" max="2100" value="2026" /></label>
+            <button type="submit">Work it out</button>
+          </form>
+        </div>
         <div id="vat-return">
           <p class="empty">Nothing worked out yet.</p>
           <p class="empty small">The boxes are computed from the invoices on record, numbered as the
@@ -86,6 +103,41 @@
       </section>
     </main>
 
+    <dialog id="new-invoice">
+      <form method="dialog" id="new-invoice-form">
+        <h2>New invoice</h2>
+        <p class="dialog-note">The same code the agent calls. Nothing it can do here is
+          unavailable to you.</p>
+        <label>Client name<input name="clientName" required autocomplete="off" /></label>
+        <label>Client tax ID (NIF)<input name="clientNif" required autocomplete="off" /></label>
+        <label>Amount before VAT (EUR)<input name="baseEuros" type="number" step="0.01" min="0.01" required /></label>
+        <label>VAT rate
+          <select name="vatRate">
+            <option value="21" selected>21%</option>
+            <option value="10">10%</option>
+            <option value="4">4%</option>
+            <option value="0">0% — none charged</option>
+          </select>
+        </label>
+        <label id="treatment-field" hidden>Why no VAT
+          <select name="vatTreatment">
+            <option value="">Choose one…</option>
+            <option value="E1">E1 — exempt</option><option value="E2">E2 — exempt</option>
+            <option value="E3">E3 — exempt</option><option value="E4">E4 — exempt</option>
+            <option value="E5">E5 — exempt</option><option value="E6">E6 — exempt</option>
+            <option value="N1">N1 — outside the scope</option>
+            <option value="N2">N2 — outside the scope</option>
+          </select>
+        </label>
+        <label>Issue date<input name="issuedOn" type="date" /></label>
+        <p id="new-invoice-error" class="dialog-error" hidden></p>
+        <menu>
+          <button type="button" id="cancel-new-invoice" class="ghost">Cancel</button>
+          <button type="submit" id="save-new-invoice">Issue it</button>
+        </menu>
+      </form>
+    </dialog>
+
     <footer>
       <p>Deadlines move to the next working day when they land on a weekend; public holidays are not
         applied. Nothing is ever submitted to the AEAT — filing on someone else’s behalf needs
@@ -97,7 +149,12 @@
       import { isSupported } from '../lib/webmcp';
       import { getMode, setMode, getProfile, saveProfile, listInvoices, today } from '../lib/db';
       import { upcomingObligations } from '../lib/obligations';
-      import { renderObligations, renderProfile, renderModeStrip, renderInvoices, focusTab } from '../lib/render';
+      import {
+        renderObligations, renderProfile, renderModeStrip, renderInvoices,
+        renderVatReturn, renderSubmission, focusTab,
+      } from '../lib/render';
+      import { createInvoice, computeVatReturn, prepareSubmission } from '../lib/actions';
+      import { PRE_303_FORM } from '../tools/prepare-vat-return';
       import type { Mode } from '../lib/mode';
       import type { Profile } from '../lib/types';
 
@@ -173,6 +230,69 @@
         await renderInvoices(await listInvoices(next), profile.nif);
         clearObligations();
       }
+
+      // Everything an agent can do, a person can do here, through the same functions in
+      // lib/actions. An agent able to do something the person cannot would mean the
+      // person was not really the one in charge.
+      const dialog = document.getElementById('new-invoice') as HTMLDialogElement;
+      const invoiceForm = document.getElementById('new-invoice-form') as HTMLFormElement;
+      const rateSelect = invoiceForm.elements.namedItem('vatRate') as HTMLSelectElement;
+      const treatmentField = document.getElementById('treatment-field') as HTMLElement;
+      const invoiceError = document.getElementById('new-invoice-error') as HTMLElement;
+
+      // Asking why inside the dialog keeps the page from reflowing under the reader.
+      rateSelect.addEventListener('change', () => {
+        treatmentField.hidden = rateSelect.value !== '0';
+      });
+
+      document.getElementById('open-new-invoice')?.addEventListener('click', () => {
+        invoiceError.hidden = true;
+        dialog.showModal();
+      });
+      document.getElementById('cancel-new-invoice')?.addEventListener('click', () => dialog.close());
+
+      document.getElementById('save-new-invoice')?.addEventListener('click', async event => {
+        event.preventDefault();
+        if (!invoiceForm.reportValidity()) return;
+        const data = new FormData(invoiceForm);
+        const result = await createInvoice({
+          clientName: String(data.get('clientName') ?? ''),
+          clientNif: String(data.get('clientNif') ?? ''),
+          baseEuros: Number(data.get('baseEuros')),
+          vatRate: Number(data.get('vatRate')),
+          issuedOn: String(data.get('issuedOn') ?? '') || undefined,
+          vatTreatment: String(data.get('vatTreatment') ?? '') || undefined,
+        });
+        if (!result.ok) {
+          invoiceError.textContent = result.reason;
+          invoiceError.hidden = false;
+          return;
+        }
+        const { invoice, invoices } = result.value;
+        await renderInvoices(invoices, profile.nif, invoice.id);
+        invoiceForm.reset();
+        treatmentField.hidden = true;
+        dialog.close();
+      });
+
+      document.getElementById('pick-quarter')?.addEventListener('submit', async event => {
+        event.preventDefault();
+        const data = new FormData(event.target as HTMLFormElement);
+        const result = await computeVatReturn(
+          Number(data.get('year')), Number(data.get('quarter')) as 1 | 2 | 3 | 4);
+        if (!result.ok) return;
+        const { vat, boxes, invoiceCount } = result.value;
+        renderVatReturn({ vat, boxes, formUrl: PRE_303_FORM, invoiceCount });
+      });
+
+      // Delegated: the invoice list is re-rendered whenever it changes.
+      document.addEventListener('click', async event => {
+        const button = (event.target as HTMLElement).closest('[data-prepare]');
+        if (!button) return;
+        const result = await prepareSubmission(
+          (button as HTMLElement).dataset.prepare, '0.1.0');
+        if (result.ok) renderSubmission(result.value);
+      });
 
       // Mode is a human decision. It is deliberately not reachable from a tool:
       // an agent that could move someone into real mode could get them to sign
@@ -411,6 +531,62 @@
         overflow-x: auto; max-height: 26rem; overflow-y: auto;
       }
       .envelope code, .howto code { font: 400 .7rem/1.55 var(--mono); color: var(--ink); white-space: pre; }
+
+      .panel-head {
+        display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-start;
+        justify-content: space-between; margin-bottom: 1.1rem;
+      }
+      .panel-head .prompt { margin: 0; max-width: 34rem; }
+      #open-new-invoice, .picker button {
+        padding: .48rem 1rem; font: 500 .85rem var(--sans); cursor: pointer;
+        background: var(--seal); color: #fff; border: 1px solid transparent; border-radius: 7px;
+        white-space: nowrap;
+      }
+      .picker { display: flex; gap: .5rem; align-items: flex-end; }
+      .picker label { display: grid; gap: .15rem; font-size: .72rem; color: var(--ink-soft); }
+      .picker select, .picker input {
+        font: 400 .82rem var(--mono); padding: .38rem .45rem; color: var(--ink);
+        border: 1px solid var(--rule); border-radius: 6px; background: var(--card);
+      }
+      .picker input { width: 5.5rem; }
+
+      .invoice-side { display: grid; gap: .45rem; justify-items: center; flex: 0 0 auto; }
+      .prepare {
+        font: 500 .72rem var(--sans); padding: .3rem .6rem; cursor: pointer;
+        background: var(--card); color: var(--seal);
+        border: 1px solid var(--rule); border-radius: 6px; white-space: nowrap;
+      }
+      .prepare:hover { background: var(--seal-wash); }
+
+      dialog {
+        border: 1px solid var(--rule); border-radius: 12px; padding: 1.4rem 1.5rem;
+        max-width: 26rem; width: calc(100% - 2rem); background: var(--card); color: var(--ink);
+      }
+      dialog::backdrop { background: rgba(16, 22, 26, .38); }
+      dialog[open] { animation: lift .18s cubic-bezier(.2, .7, .3, 1); }
+      dialog[open]::backdrop { animation: fade .18s ease; }
+      @keyframes lift { from { opacity: 0; transform: translateY(6px) scale(.985); } }
+      @keyframes fade { from { opacity: 0; } }
+      dialog h2 { margin: 0 0 .2rem; font-size: 1rem; }
+      .dialog-note { margin: 0 0 1rem; font-size: .78rem; color: var(--ink-soft); }
+      dialog label { display: grid; gap: .2rem; margin-bottom: .7rem; font-size: .78rem; color: var(--ink-soft); }
+      dialog input, dialog select {
+        font: 400 .88rem var(--sans); padding: .45rem .55rem; color: var(--ink);
+        border: 1px solid var(--rule); border-radius: 6px; background: var(--card);
+      }
+      dialog input[name="clientNif"], dialog input[type="date"], dialog input[type="number"] {
+        font-family: var(--mono); font-size: .82rem;
+      }
+      .dialog-error {
+        margin: 0 0 .8rem; padding: .55rem .7rem; border-radius: 7px;
+        background: #fbeee9; color: #7d2a13; font-size: .78rem;
+      }
+      dialog menu { display: flex; gap: .5rem; justify-content: flex-end; margin: .3rem 0 0; padding: 0; }
+      dialog menu button {
+        padding: .45rem 1rem; font: 500 .85rem var(--sans); cursor: pointer;
+        border-radius: 7px; border: 1px solid transparent; background: var(--seal); color: #fff;
+      }
+      dialog menu .ghost { background: var(--card); color: var(--ink-soft); border-color: var(--rule); }
 
       .facts, .fields { max-width: 26rem; }
       .facts { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: .35rem 1rem; font-size: .88rem; }

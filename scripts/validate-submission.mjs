@@ -14,7 +14,7 @@
 import { withWebMCP } from './webmcp-harness.mjs';
 import { serve } from './serve.mjs';
 import { execFile } from 'node:child_process';
-import { mkdirSync, writeFileSync, existsSync, readFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 

@@ -76,6 +76,9 @@ export async function withWebMCP(url, fn) {
     // Ground truth for "would an inspector that scans at load see our tools?".
     // Measured from the browser's own events, not from instrumentation in the page.
     const marks = { firstToolsAdded: null, loadFired: null };
+    // An async click handler that rejects fails silently otherwise, which is a long
+    // way to travel before finding out an import was wrong.
+    const pageErrors = [];
     const responses = new Map();
     const waiters = new Map();
 
@@ -92,6 +95,13 @@ export async function withWebMCP(url, fn) {
         tools.push(...m.params.tools);
       }
       if (m.method === 'Page.loadEventFired') marks.loadFired ??= performance.now();
+      if (m.method === 'Runtime.exceptionThrown') {
+        const d = m.params.exceptionDetails;
+        pageErrors.push(d.exception?.description ?? d.text ?? 'unknown exception');
+      }
+      if (m.method === 'Runtime.consoleAPICalled' && m.params.type === 'error') {
+        pageErrors.push(m.params.args.map(a => a.value ?? a.description ?? '').join(' '));
+      }
       if (m.method === 'WebMCP.toolsRemoved') {
         for (const rm of m.params.tools) {
           const i = tools.findIndex(t => t.name === rm.name);
@@ -170,6 +180,9 @@ export async function withWebMCP(url, fn) {
         const { data } = await send('Page.captureScreenshot', { format: 'png' });
         return data;
       },
+
+      /** Uncaught exceptions and console errors the page produced, in order. */
+      errors: () => [...pageErrors],
 
       /** Run JS in the page — for asserting the UI actually changed. */
       async evaluate(expression) {
