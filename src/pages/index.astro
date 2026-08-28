@@ -329,6 +329,15 @@
       body[data-mode="real"] { --seal: #8a4b12; --seal-wash: #f7efe4; }
 
       * { box-sizing: border-box; }
+
+      /*
+        The browser's own [hidden] rule is display:none at the weakest possible
+        specificity, so any element rule that sets display beats it. #drawer is
+        display:flex, so hiding it set the attribute and changed nothing — closing
+        it did nothing visible while every test that asked .hidden said it had. Any
+        [hidden] here means gone.
+      */
+      [hidden] { display: none !important; }
       body {
         margin: 0; background: var(--paper); color: var(--ink);
         font: 400 16px/1.5 var(--sans);

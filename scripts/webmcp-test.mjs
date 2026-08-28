@@ -314,6 +314,34 @@ try {
       await switchMode(c, 'demo');
     })(client);
 
+    await check('the drawer actually closes', async c => {
+      // Asserts geometry, not the attribute. The attribute was being set correctly
+      // the whole time an element rule kept the drawer on screen.
+      await switchMode(c, 'demo');
+      await c.invoke('list_obligations', { withinDays: 365 });
+      const openWidth = Number(await c.evaluate(
+        `document.getElementById('drawer').getBoundingClientRect().width`));
+      assert(openWidth > 100, `the drawer did not open (width ${openWidth})`);
+
+      await c.evaluate(`document.getElementById('close-drawer').click()`);
+      await settle(400);
+      const shutWidth = Number(await c.evaluate(
+        `document.getElementById('drawer').getBoundingClientRect().width`));
+      assert(shutWidth === 0, `the drawer is still ${shutWidth}px wide after closing`);
+      const display = await c.evaluate(
+        `getComputedStyle(document.getElementById('drawer')).display`);
+      assert(display === 'none', `closed drawer computes to display:${display}`);
+    })(client);
+
+    await check('Escape closes the drawer too', async c => {
+      await c.invoke('list_obligations', { withinDays: 365 });
+      await c.evaluate(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))`);
+      await settle(300);
+      assert(Number(await c.evaluate(
+        `document.getElementById('drawer').getBoundingClientRect().width`)) === 0,
+        'Escape left the drawer open');
+    })(client);
+
     await check('a tool brings its own tab forward', async c => {
       // If an agent filled in a tab the person could not see, the answer would be
       // off screen and the premise — that you watch the work happen — would break.
