@@ -241,14 +241,16 @@ subdirectory:
 
 ```bash
 BASE_PATH=/ventanilla/ npm run build
-npm run test:pages
+BASE_PATH=/ventanilla/ npm run check:base   # static, runs in CI
+npm run test:pages                          # drives a real browser, local only
 ```
 
-That second command is not ceremony. With a wrong base path the HTML still loads and
-its module does not, so WebMCP never registers and the page looks merely broken rather
-than broken in a way anyone would think to diagnose — and that only shows up once it is
-live. It serves the build from the subdirectory, drives it with a real browser, and
-checks the tools registered and nothing points outside the base.
+Those checks are not ceremony. With a wrong base path the HTML still loads and its
+module does not, so WebMCP never registers and the page looks merely broken rather than
+broken in a way anyone would think to diagnose — and that only shows up once it is
+live. `check:base` verifies every reference sits under the base and is present in the
+build; `test:pages` serves the build from the subdirectory and proves in a real browser
+that the tools still register.
 
 Pushing to `main` deploys via GitHub Actions.
 
