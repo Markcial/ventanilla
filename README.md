@@ -12,32 +12,44 @@ Built for the [WebMCP Challenge](https://webmcp.devpost.com/).
 
 ## Prior art
 
-Commercial products are appearing in this space. [YoFacturo
-MCP](https://www.yofacturo.es/mcp) bills itself as the first Verifactu-native
-invoicing MCP in Spain, and its diagram is `your AI → their MCP → AEAT`: the
-signing, the chaining and the submission all happen on their side.
+Two Spanish products shipped AI invoicing in the same season, and both chose the same
+shape.
 
-It is a good product for their customers, and it works the only way that
-architecture can. To sign on your behalf, a service has to be in a position to
-sign on your behalf. That is what obliges an account, a subscription, and a
-company holding your tax ID and your taxable base.
+[YoFacturo MCP](https://www.yofacturo.es/mcp) advertises itself as the first
+Verifactu-native invoicing MCP in Spain: `your AI → their MCP → AEAT`.
+[Factuarea](https://factuarea.com/) is a full invoicing product from €9.90 a month
+with an official MCP server bolted on, and it does the quarterly models too.
 
-Ventanilla is not trying to be a cheaper version of that. It is the same problem
-solved without the custody:
+Both are good at what they do. Both are hosted MCP servers. Neither puts the tools in
+the page — and that is not an oversight, it is the only option they had. Until WebMCP
+there was no page to put them in.
+
+Two things follow from that shape, and they follow necessarily:
+
+**They have to hold your identity.** To sign on your behalf, a service must be in a
+position to sign on your behalf. That is what obliges an account, a subscription, and
+a company holding your tax ID and your taxable base.
+
+**They cannot show you the document.** A server-side tool returns text. The agent
+tells you what it did, and you believe it or you go and look somewhere else. Every
+argument in this README about the confirmation being the artifact rather than a summary
+is an argument about that gap.
+
+Ventanilla is not a cheaper version of either:
 
 |  | A hosted MCP service | Ventanilla |
 |---|---|---|
 | Where your records live | their servers | your browser |
 | Who signs | they do, for you | you do, with your certificate |
+| What you see | what the agent reports | the document itself |
 | To start | an account | open a URL |
 | To run it | someone pays for servers | there are none |
 
-The last row is the point. **There is no backend to host, so there is nothing to
-charge for and nothing to sign up for** — not a pricing decision, a consequence of
-where the data lives. And because the tools are a few hundred lines that register
-on `document.modelContext`, any Spanish invoicing site can adopt them directly.
-MIT licensed, so please do: this is more useful as a reference implementation than
-as a product.
+The last row is the point, and it is architectural rather than commercial. **There is
+no backend to host, so there is nothing to charge for and nothing to sign up for.** The
+tools are a few hundred lines registered on `document.modelContext` under an MIT
+licence, so any Spanish invoicing site — including those two — can adopt them directly.
+That is a better thing for this to be than a product.
 
 ## Why this is a WebMCP project and not an MCP server
 
