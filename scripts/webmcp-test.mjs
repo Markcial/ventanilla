@@ -314,6 +314,41 @@ try {
       await switchMode(c, 'demo');
     })(client);
 
+    await check('everything this page hides actually disappears', async c => {
+      // Measured, not asked. The drawer shipped broken because the tests checked
+      // that the hidden attribute had been set, which it always had, while an
+      // element rule kept it on screen. Area is what a person perceives.
+      const area = async sel => Number(await c.evaluate(`(() => {
+        const e = document.querySelector('${sel}');
+        if (!e) return -1;
+        const r = e.getBoundingClientRect();
+        return r.width * r.height;
+      })()`));
+
+      await switchMode(c, 'demo');
+      await c.evaluate(`document.querySelector('[data-tab="billing"]').click()`);
+      assert(await area('[data-panel="profile"]') === 0, 'the inactive tab panel is still on screen');
+
+      await c.invoke('list_obligations', { withinDays: 365 });
+      await settle(300);
+      for (const sel of ['#vat-return', '#submission']) {
+        assert(await area(sel) === 0, `${sel} is on screen while the drawer shows deadlines`);
+      }
+
+      await c.invoke('export_submission', { invoiceId: 'DEMO-2026-002' });
+      await settle(300);
+      assert(await area('#obligations') === 0,
+        'the deadlines panel is on screen while the drawer shows a submission');
+
+      await c.evaluate(`document.getElementById('open-new-invoice').click()`);
+      await settle(250);
+      assert(await area('#new-invoice') > 0, 'the dialog did not actually appear');
+      assert(await area('#treatment-field') === 0, 'the reason field shows at the ordinary VAT rate');
+      await c.evaluate(`document.getElementById('cancel-new-invoice').click()`);
+      await settle(250);
+      assert(await area('#new-invoice') === 0, 'the dialog is still on screen after Cancel');
+    })(client);
+
     await check('the drawer actually closes', async c => {
       // Asserts geometry, not the attribute. The attribute was being set correctly
       // the whole time an element rule kept the drawer on screen.
