@@ -18,7 +18,7 @@ export function renderObligations(obligations: Obligation[]): void {
   if (!host) return;
 
   host.dataset.count = String(obligations.length);
-  focusTab('deadlines');
+  openDrawer('obligations', 'What you owe, and when');
 
   if (obligations.length === 0) {
     host.innerHTML = '<p class="empty">Nothing due in that window.</p>';
@@ -106,8 +106,8 @@ export async function renderInvoices(invoices: Invoice[], issuerNif: string, hig
   if (!host) return;
 
   host.dataset.count = String(invoices.length);
-  setTabCount('invoices', invoices.length);
-  if (highlightId) focusTab('invoices');
+  setTabCount('billing', invoices.length);
+  if (highlightId) focusTab('billing');
 
   if (invoices.length === 0) {
     host.innerHTML = '<p class="empty">No invoices yet.</p>';
@@ -206,7 +206,7 @@ export function renderVatReturn(view: VatReturnView): void {
     <p class="filing">That is the AEAT preproduction form. It behaves like the real one and has no
       fiscal effect.</p>`;
 
-  focusTab('vat-return');
+  openDrawer('vat-return', `Modelo 303 · ${vat.period} ${vat.year}`);
 }
 
 export interface SubmissionView {
@@ -215,6 +215,7 @@ export interface SubmissionView {
   envelope: string;
   endpoint: string;
   instructions: string;
+  mode: Mode;
 }
 
 /**
@@ -237,15 +238,21 @@ export function renderSubmission(view: SubmissionView): void {
       </div>
       <button id="download-submission" type="button">Download ${escape(view.filename)}</button>
     </div>
-    <p class="warn">This goes to the tax agency's test environment. It has no fiscal effect —
-      that is what the environment is published for.</p>
+    ${view.mode === 'real' ? `
+      <p class="warn">This goes to the tax agency's test environment. It has no fiscal effect —
+        that is what the environment is published for.</p>
 
-    <form class="send" method="POST" enctype="text/plain" target="_blank" action="${escape(view.endpoint)}">
-      <input type="hidden" name="${escape(view.envelope)}" value="" />
-      <button type="submit">Send it with my certificate</button>
-      <p class="send-note">Your browser will ask which certificate to use. Nothing can answer that
-        for you — not this page, and not an agent. That prompt is the point.</p>
-    </form>
+      <form class="send" method="POST" enctype="text/plain" target="_blank" action="${escape(view.endpoint)}">
+        <input type="hidden" name="${escape(view.envelope)}" value="" />
+        <button type="submit">Send it with my certificate</button>
+        <p class="send-note">Your browser will ask which certificate to use. Nothing can answer
+          that for you — not this page, and not an agent. That prompt is the point.</p>
+      </form>` : `
+      <p class="warn"><strong>Demo mode cannot send this, and no demo could.</strong>
+        The tax agency identifies the issuer against its real census, so a sample tax ID is
+        rejected outright — <code>4104: el NIF del bloque ObligadoEmision no está identificado</code>.
+        There is no sandbox identity to apply for. Sending needs real mode, your own details and
+        your own certificate.</p>`}
     <pre class="envelope"><code>${escape(view.envelope)}</code></pre>
     <h4>Sending it yourself</h4>
     <pre class="howto"><code>${escape(view.instructions)}</code></pre>`;
@@ -260,7 +267,37 @@ export function renderSubmission(view: SubmissionView): void {
     URL.revokeObjectURL(url);
   });
 
-  focusTab('submission');
+  openDrawer('submission', `Submission · ${view.invoiceId}`);
+}
+
+const DRAWER_PANELS = ['obligations', 'vat-return', 'submission'] as const;
+
+/**
+ * Slide a result into view over the ledger.
+ *
+ * Deadlines, the VAT return and a prepared submission are not places to navigate
+ * to — they are things that appear. A tool that wrote into a tab the reader was
+ * not on would put its answer off screen, and the one thing this project claims,
+ * that you watch the work happen, would stop being true.
+ */
+export function openDrawer(which: typeof DRAWER_PANELS[number], title: string): void {
+  const drawer = document.getElementById('drawer');
+  if (!drawer) return;
+  for (const id of DRAWER_PANELS) {
+    const panel = document.getElementById(id);
+    if (panel) panel.hidden = id !== which;
+  }
+  const heading = document.getElementById('drawer-title');
+  if (heading) heading.textContent = title;
+  drawer.hidden = false;
+  drawer.dataset.showing = which;
+}
+
+export function closeDrawer(): void {
+  const drawer = document.getElementById('drawer');
+  if (!drawer) return;
+  drawer.hidden = true;
+  delete drawer.dataset.showing;
 }
 
 /**

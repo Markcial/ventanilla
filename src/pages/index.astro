@@ -27,17 +27,8 @@
       <p id="mode-strip" class="mode-strip" data-mode="demo">Loading…</p>
 
       <nav class="tabs" role="tablist" aria-label="Sections">
-        <button type="button" role="tab" data-tab="invoices" aria-selected="true" aria-controls="panel-invoices">
-          Invoices <span class="count"></span>
-        </button>
-        <button type="button" role="tab" data-tab="deadlines" aria-selected="false" aria-controls="panel-deadlines" tabindex="-1">
-          Deadlines
-        </button>
-        <button type="button" role="tab" data-tab="vat-return" aria-selected="false" aria-controls="panel-vat-return" tabindex="-1">
-          Modelo 303
-        </button>
-        <button type="button" role="tab" data-tab="submission" aria-selected="false" aria-controls="panel-submission" tabindex="-1">
-          Submission
+        <button type="button" role="tab" data-tab="billing" aria-selected="true" aria-controls="panel-billing">
+          Billing <span class="count"></span>
         </button>
         <button type="button" role="tab" data-tab="profile" aria-selected="false" aria-controls="panel-profile" tabindex="-1">
           Profile
@@ -46,55 +37,21 @@
     </header>
 
     <main>
-      <section id="panel-invoices" data-panel="invoices" role="tabpanel" aria-labelledby="tab-invoices">
-        <div class="panel-head">
-          <p class="prompt">Say to your agent: <em>“invoice Astillero Ribera 800 euros plus VAT”</em>
-            — or do it yourself.</p>
+      <section id="panel-billing" data-panel="billing" role="tabpanel">
+        <div class="toolbar">
           <button id="open-new-invoice" type="button">New invoice</button>
+          <button id="show-deadlines" type="button" class="ghost">What's due</button>
+          <form id="pick-quarter" class="picker">
+            <select name="quarter" aria-label="Quarter">
+              <option value="1">1T</option><option value="2">2T</option>
+              <option value="3" selected>3T</option><option value="4">4T</option>
+            </select>
+            <input name="year" type="number" min="2000" max="2100" value="2026" aria-label="Year" />
+            <button type="submit" class="ghost">VAT return</button>
+          </form>
+          <p class="toolbar-note">Or say it to your agent: <em>“invoice Astillero Ribera 800 euros plus VAT”</em></p>
         </div>
         <div id="invoices" data-count="0"><p class="empty">No invoices yet.</p></div>
-      </section>
-
-      <section id="panel-deadlines" data-panel="deadlines" role="tabpanel" hidden>
-        <p class="prompt">Say to your agent: <em>“what do I have to file next?”</em></p>
-        <div id="obligations" data-count="0">
-          <p class="empty">Nothing here yet — on purpose.</p>
-          <p class="empty small">This stays empty until something fills it, so when an agent answers
-            you can tell it called the tool instead of reading the screen.</p>
-          <button id="load-obligations" type="button">Show them myself</button>
-        </div>
-      </section>
-
-      <section id="panel-vat-return" data-panel="vat-return" role="tabpanel" hidden>
-        <div class="panel-head">
-          <p class="prompt">Say to your agent: <em>“work out my VAT return for last quarter”</em>
-            — or pick a quarter.</p>
-          <form id="pick-quarter" class="picker">
-            <label>Quarter
-              <select name="quarter">
-                <option value="1">1T</option><option value="2">2T</option>
-                <option value="3" selected>3T</option><option value="4">4T</option>
-              </select>
-            </label>
-            <label>Year<input name="year" type="number" min="2000" max="2100" value="2026" /></label>
-            <button type="submit">Work it out</button>
-          </form>
-        </div>
-        <div id="vat-return">
-          <p class="empty">Nothing worked out yet.</p>
-          <p class="empty small">The boxes are computed from the invoices on record, numbered as the
-            official form numbers them, and shown with whatever they could not account for.</p>
-        </div>
-      </section>
-
-      <section id="panel-submission" data-panel="submission" role="tabpanel" hidden>
-        <p class="prompt">Say to your agent: <em>“prepare the AEAT submission for that invoice”</em></p>
-        <div id="submission">
-          <p class="empty">Nothing prepared yet.</p>
-          <p class="empty small">Ventanilla builds the SOAP request the tax agency expects and gives
-            it to you. It never sends it — and no web page could: the endpoint answers no CORS
-            headers and requires a client certificate.</p>
-        </div>
       </section>
 
       <section id="panel-profile" data-panel="profile" role="tabpanel" hidden>
@@ -102,6 +59,28 @@
         <div id="profile" data-mode="demo"><p class="empty">Loading…</p></div>
       </section>
     </main>
+
+    <!--
+      Deadlines, the VAT return and a prepared submission are not places, they are
+      results. They slide in over the ledger instead of living in tabs of their own,
+      so a tool's output arrives in view without the reader losing their place.
+    -->
+    <aside id="drawer" hidden aria-labelledby="drawer-title">
+      <header>
+        <h2 id="drawer-title">Result</h2>
+        <button id="close-drawer" type="button" aria-label="Close">&times;</button>
+      </header>
+      <div class="drawer-body">
+        <div id="obligations" data-count="0" hidden>
+          <p class="empty">Nothing here yet — on purpose.</p>
+          <p class="empty small">This stays empty until something fills it, so when an agent
+            answers you can tell it called the tool instead of reading the screen.</p>
+          <button id="load-obligations" type="button">Show them myself</button>
+        </div>
+        <div id="vat-return" hidden><p class="empty">Nothing worked out yet.</p></div>
+        <div id="submission" hidden><p class="empty">Nothing prepared yet.</p></div>
+      </div>
+    </aside>
 
     <dialog id="new-invoice">
       <form method="dialog" id="new-invoice-form">
@@ -151,7 +130,7 @@
       import { upcomingObligations } from '../lib/obligations';
       import {
         renderObligations, renderProfile, renderModeStrip, renderInvoices,
-        renderVatReturn, renderSubmission, focusTab,
+        renderVatReturn, renderSubmission, focusTab, openDrawer, closeDrawer,
       } from '../lib/render';
       import { createInvoice, computeVatReturn, prepareSubmission } from '../lib/actions';
       import { PRE_303_FORM } from '../tools/prepare-vat-return';
@@ -191,6 +170,15 @@
         wireLoadButton();
       }
 
+      // The drawer holds results, so switching context should not leave the last
+      // one hanging over the ledger.
+      document.getElementById('close-drawer')?.addEventListener('click', closeDrawer);
+      document.getElementById('show-deadlines')?.addEventListener('click', () =>
+        openDrawer('obligations', 'What you owe, and when'));
+      document.addEventListener('keydown', event => {
+        if (event.key === 'Escape') closeDrawer();
+      });
+
       function wireLoadButton() {
         document.getElementById('load-obligations')?.addEventListener('click', () => {
           renderObligations(upcomingObligations(profile, today(), 365));
@@ -229,6 +217,7 @@
         // tool's answer — unlike the deadlines panel, which must stay empty.
         await renderInvoices(await listInvoices(next), profile.nif);
         clearObligations();
+        closeDrawer();
       }
 
       // Everything an agent can do, a person can do here, through the same functions in
@@ -291,7 +280,7 @@
         if (!button) return;
         const result = await prepareSubmission(
           (button as HTMLElement).dataset.prepare, '0.1.0');
-        if (result.ok) renderSubmission(result.value);
+        if (result.ok) renderSubmission({ ...result.value, mode: result.mode });
       });
 
       // Mode is a human decision. It is deliberately not reachable from a tool:
@@ -315,7 +304,7 @@
       }
 
       await applyMode(mode);
-      focusTab('invoices');
+      focusTab('billing');
     </script>
 
     <style is:global>
@@ -532,6 +521,43 @@
       }
       .envelope code, .howto code { font: 400 .7rem/1.55 var(--mono); color: var(--ink); white-space: pre; }
 
+      .toolbar {
+        display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin-bottom: 1.2rem;
+      }
+      .toolbar button, .picker button {
+        padding: .48rem 1rem; font: 500 .85rem var(--sans); cursor: pointer;
+        background: var(--seal); color: #fff; border: 1px solid transparent; border-radius: 7px;
+        white-space: nowrap;
+      }
+      .toolbar .ghost, .picker .ghost {
+        background: var(--card); color: var(--seal); border-color: var(--rule);
+      }
+      .toolbar .ghost:hover, .picker .ghost:hover { background: var(--seal-wash); }
+      .toolbar-note {
+        margin: 0; font-size: .8rem; color: var(--ink-soft); flex: 1 1 16rem; min-width: 0;
+      }
+      .toolbar-note em { color: var(--ink); }
+
+      #drawer {
+        position: fixed; top: 0; right: 0; bottom: 0; width: min(46rem, 100%);
+        background: var(--paper); border-left: 1px solid var(--rule);
+        box-shadow: -18px 0 46px rgba(16, 22, 26, .13);
+        display: flex; flex-direction: column; z-index: 20;
+        animation: slide-in .22s cubic-bezier(.2, .7, .3, 1);
+      }
+      @keyframes slide-in { from { transform: translateX(14px); opacity: 0; } }
+      #drawer > header {
+        display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+        padding: 1rem 1.4rem; border-bottom: 1px solid var(--rule); background: var(--card);
+      }
+      #drawer h2 { margin: 0; font: 500 .95rem var(--mono); letter-spacing: -0.01em; }
+      #close-drawer {
+        appearance: none; border: 0; background: none; cursor: pointer; line-height: 1;
+        font-size: 1.5rem; color: var(--ink-soft); padding: 0 .2rem;
+      }
+      #close-drawer:hover { color: var(--ink); }
+      .drawer-body { overflow-y: auto; padding: 1.3rem 1.4rem 2rem; }
+
       .panel-head {
         display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-start;
         justify-content: space-between; margin-bottom: 1.1rem;
@@ -542,8 +568,7 @@
         background: var(--seal); color: #fff; border: 1px solid transparent; border-radius: 7px;
         white-space: nowrap;
       }
-      .picker { display: flex; gap: .5rem; align-items: flex-end; }
-      .picker label { display: grid; gap: .15rem; font-size: .72rem; color: var(--ink-soft); }
+      .picker { display: flex; gap: .35rem; align-items: center; }
       .picker select, .picker input {
         font: 400 .82rem var(--mono); padding: .38rem .45rem; color: var(--ink);
         border: 1px solid var(--rule); border-radius: 6px; background: var(--card);

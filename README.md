@@ -99,12 +99,17 @@ and no certificate. So there are two modes, and demo is the one you land in.
 | Profile | sample freelancer, pre-filled | yours, you type it in |
 | Invoices | six sample invoices across Q3 2026 | yours |
 | Calculations | the same code as real mode | the same code as demo mode |
-| Signing | simulated | AutoFirma, your own certificate |
-| Submitted to AEAT | never | never |
+| Signing | not offered | your own certificate |
+| Sent to the AEAT | impossible | you send it, from the page |
 
-Neither mode files anything. Filing on someone else's behalf requires registered
-*colaborador social* status, which this is not — so the honest ceiling is a
-prepared, signed document, and both modes say so.
+**Demo mode cannot send, and no demo could.** The agency identifies the issuer
+against its real census, so a sample tax ID comes back as `4104: el NIF del bloque
+ObligadoEmision no está identificado`. There is no sandbox identity to apply for.
+That is not a rule we impose; it is why demo mode does not show a Send button at
+all, and says why instead.
+
+Neither mode files anything on anyone else's behalf. That needs registered
+*colaborador social* status, which this is not.
 
 Demo and real data are separated in storage rather than filtered at the call
 site, so a missed filter cannot mix sample invoices into real totals. Real mode

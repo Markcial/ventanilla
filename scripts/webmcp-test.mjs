@@ -34,6 +34,21 @@ async function switchMode(client, mode) {
   await settle(600);
 }
 
+/** Real mode with a usable profile, which is what sending requires. */
+async function setUpRealProfile(client) {
+  await switchMode(client, 'real');
+  await client.evaluate(`document.querySelector('[data-tab="profile"]').click()`);
+  await client.evaluate(`(() => {
+    const f = document.getElementById('profile-form');
+    f.name.value = 'Test Issuer';
+    f.nif.value = '89890001K';
+    f.startedTrading.value = '2021-01-01';
+    f.dispatchEvent(new Event('submit', { cancelable: true }));
+  })()`);
+  await settle(700);
+  await client.evaluate(`document.querySelector('[data-tab="billing"]').click()`);
+}
+
 const site = await serve('dist');
 console.log(`serving dist/ at ${site.url}`);
 console.log('WebMCP integration tests\n');
@@ -303,34 +318,31 @@ try {
       // If an agent filled in a tab the person could not see, the answer would be
       // off screen and the premise — that you watch the work happen — would break.
       await switchMode(c, 'demo');
+      await c.evaluate(`document.getElementById('close-drawer').click()`);
       await c.evaluate(`document.querySelector('[data-tab="profile"]').click()`);
-      const parked = await c.evaluate(
-        `document.querySelector('[data-tab="profile"]').getAttribute('aria-selected')`);
-      assert(parked === 'true', 'could not park on the profile tab first');
 
       await c.invoke('list_obligations', { withinDays: 365 });
-      const onDeadlines = await c.evaluate(
-        `document.querySelector('[data-tab="deadlines"]').getAttribute('aria-selected')`);
-      assert(onDeadlines === 'true', 'list_obligations left the deadlines tab hidden');
-      const visible = await c.evaluate(`!document.querySelector('[data-panel="deadlines"]').hidden`);
-      assert(visible, 'the deadlines panel stayed hidden after its tool ran');
+      const showing = await c.evaluate(`document.getElementById('drawer').dataset.showing`);
+      assert(showing === 'obligations', `the drawer was showing "${showing}"`);
+      assert(await c.evaluate(`!document.getElementById('drawer').hidden`),
+        'the drawer stayed shut after its tool ran');
 
       await c.invoke('register_invoice', {
         clientName: 'Tab Focus SL', clientNif: '89890008M', baseEuros: 10, issuedOn: '2026-09-29',
       });
-      const onInvoices = await c.evaluate(
-        `document.querySelector('[data-tab="invoices"]').getAttribute('aria-selected')`);
-      assert(onInvoices === 'true', 'register_invoice left the invoices tab hidden');
+      const onBilling = await c.evaluate(
+        `document.querySelector('[data-tab="billing"]').getAttribute('aria-selected')`);
+      assert(onBilling === 'true', 'register_invoice left the billing tab hidden');
     })(client);
 
     await check('the invoice count is shown on its tab', async c => {
-      const badge = await c.evaluate(`document.querySelector('[data-tab="invoices"] .count').textContent`);
+      const badge = await c.evaluate(`document.querySelector('[data-tab="billing"] .count').textContent`);
       const actual = await c.evaluate(`document.getElementById('invoices').dataset.count`);
       assert(badge === actual, `tab badge said "${badge}" but there are ${actual} invoices`);
     })(client);
 
     await check('tabs are reachable by keyboard', async c => {
-      await c.evaluate(`document.querySelector('[data-tab="invoices"]').focus()`);
+      await c.evaluate(`document.querySelector('[data-tab="billing"]').focus()`);
       // Exactly one tab stop, on the selected tab, however many tabs there are.
       const stops = (await c.evaluate(
         `[...document.querySelectorAll('[data-tab]')].map(t => t.tabIndex).join(',')`)).split(',');
@@ -369,9 +381,8 @@ try {
 
     await check('the return lands on its own tab as a numbered sheet', async c => {
       await c.invoke('prepare_vat_return', { year: 2026, quarter: 3 });
-      const tab = await c.evaluate(
-        `document.querySelector('[data-tab="vat-return"]').getAttribute('aria-selected')`);
-      assert(tab === 'true', 'the Modelo 303 tab was not brought forward');
+      const showing = await c.evaluate(`document.getElementById('drawer').dataset.showing`);
+      assert(showing === 'vat-return', `the drawer was showing "${showing}"`);
       const boxes = Number(await c.evaluate(`document.getElementById('vat-return').dataset.boxes`));
       assert(boxes > 10, `only ${boxes} boxes rendered`);
       const numbers = await c.evaluate(
@@ -407,9 +418,8 @@ try {
       assert(shown.includes('RegFactuSistemaFacturacion'), 'no envelope rendered');
       const button = await c.evaluate(`!!document.getElementById('download-submission')`);
       assert(button, 'no download button offered');
-      const tab = await c.evaluate(
-        `document.querySelector('[data-tab="submission"]').getAttribute('aria-selected')`);
-      assert(tab === 'true', 'the submission tab was not brought forward');
+      const showing = await c.evaluate(`document.getElementById('drawer').dataset.showing`);
+      assert(showing === 'submission', `the drawer was showing "${showing}"`);
     })(client);
 
     await check('the envelope carries the stored generation time, not a fresh one', async c => {
@@ -433,9 +443,27 @@ try {
       assert(!/<sf:TipoImpositivo>/.test(envelope), 'an exempt line should carry no rate');
     })(client);
 
-    await check('the send form is a real form, aimed only at preproduction', async c => {
+    await check('demo mode does not offer to send, and says no demo could', async c => {
+      // The tax agency identifies the issuer against its real census, so a sample
+      // tax ID is rejected outright. Offering a button that cannot work is worse
+      // than offering none.
       await switchMode(c, 'demo');
       await c.invoke('export_submission', { invoiceId: 'DEMO-2026-002' });
+      const hasForm = await c.evaluate(`!!document.querySelector('form.send')`);
+      assert(!hasForm, 'demo mode offered a Send button that the agency would reject');
+      const warning = await c.evaluate(
+        `document.querySelector('#submission .warn')?.textContent ?? ''`);
+      assert(/cannot send/i.test(warning) && /census/i.test(warning),
+        `demo mode did not explain why it cannot send:\n${warning}`);
+      const stillDownloadable = await c.evaluate(`!!document.getElementById('download-submission')`);
+      assert(stillDownloadable, 'demo mode should still let you take the envelope away');
+    })(client);
+
+    await check('the send form is a real form, aimed only at preproduction', async c => {
+      await setUpRealProfile(c);
+      await c.invoke('register_invoice', {
+        clientName: 'Send Form SL', clientNif: '89890002E', baseEuros: 120, issuedOn: '2026-08-28' });
+      await c.invoke('export_submission', {});
       const action = await c.evaluate(`document.querySelector('form.send')?.action ?? ''`);
       assert(/^https:\/\/prewww1\.aeat\.es\//.test(action), `form points at "${action}"`);
       const enc = await c.evaluate(`document.querySelector('form.send').enctype`);
@@ -449,14 +477,16 @@ try {
     })(client);
 
     await check('nothing submits the form on the page behalf', async c => {
+      // Runs while real mode still has the form on screen from the check above.
       // The certificate prompt is the human's moment. A tool that could submit
       // this form would be arranging for a person to sign without deciding to.
       const src = await c.evaluate(
         `[...document.querySelectorAll('script')].map(s => s.textContent).join('')`);
       assert(!/\.submit\(\)/.test(src), 'something in the page calls form.submit()');
       const inline = await c.evaluate(
-        `document.querySelector('form.send').getAttribute('onsubmit')`);
+        `document.querySelector('form.send')?.getAttribute('onsubmit') ?? null`);
       assert(!inline, 'the form has an inline submit handler');
+      await switchMode(c, 'demo');
     })(client);
 
     await check('every submission result names the test environment', async c => {
@@ -538,7 +568,6 @@ try {
     })(client);
 
     await check('a person can work out the VAT return without an agent', async c => {
-      await c.evaluate(`document.querySelector('[data-tab="vat-return"]').click()`);
       await c.evaluate(`(() => {
         const f = document.getElementById('pick-quarter');
         f.quarter.value = '3'; f.year.value = '2026';
@@ -550,7 +579,6 @@ try {
     })(client);
 
     await check('a person can prepare a submission without an agent', async c => {
-      await c.evaluate(`document.querySelector('[data-tab="invoices"]').click()`);
       await c.evaluate(`document.querySelector('[data-prepare]').click()`);
       await settle(600);
       const envelope = await c.evaluate(

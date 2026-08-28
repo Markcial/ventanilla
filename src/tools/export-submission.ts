@@ -49,7 +49,7 @@ export const exportSubmission: ToolDefinition<Input> = {
     if (!result.ok) return text(`${modeNotice(result.mode)} ${result.reason}`);
 
     const view = result.value;
-    renderSubmission(view);
+    renderSubmission({ ...view, mode: result.mode });
 
     return text(
       `${modeNotice(result.mode)} Submission for ${view.invoiceId} is ready and on screen.\n`
