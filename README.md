@@ -2,6 +2,12 @@
 
 Spanish freelance paperwork, prepared by your agent and decided by you.
 
+**Live: [markcial.github.io/ventanilla](https://markcial.github.io/ventanilla/)**
+
+Open it in the ChatGPT desktop browser, or in Chrome 149+ with the WebMCP trial
+enabled, and ask it to invoice someone. It starts in demo mode with sample data and
+files nothing.
+
 Built for the [WebMCP Challenge](https://webmcp.devpost.com/).
 
 ## Why this is a WebMCP project and not an MCP server
