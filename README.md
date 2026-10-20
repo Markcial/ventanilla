@@ -1,8 +1,22 @@
-# Ventanilla
+<div align="center">
 
-Spanish freelance paperwork, prepared by your agent and decided by you.
+# 🏛️ Ventanilla
 
-**Live: [markcial.github.io/ventanilla](https://markcial.github.io/ventanilla/)**
+**Spanish freelance paperwork, prepared by your agent and decided by you.**
+
+[![Live demo](https://img.shields.io/badge/demo-markcial.github.io%2Fventanilla-FF2EAA?style=for-the-badge&logo=githubpages&logoColor=white)](https://markcial.github.io/ventanilla/)
+[![WebMCP Challenge](https://img.shields.io/badge/WebMCP-Challenge-39FF6A?style=for-the-badge)](https://webmcp.devpost.com/)
+
+[![Deploy](https://github.com/Markcial/ventanilla/actions/workflows/deploy.yml/badge.svg)](https://github.com/Markcial/ventanilla/actions/workflows/deploy.yml)
+[![License: MIT](https://img.shields.io/github/license/Markcial/ventanilla)](LICENSE)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
+![Astro](https://img.shields.io/badge/Astro-BC52EE?logo=astro&logoColor=white)
+![Vitest](https://img.shields.io/badge/Vitest-6E9F18?logo=vitest&logoColor=white)
+![No backend](https://img.shields.io/badge/backend-none-lightgrey)
+
+![Ventanilla in demo mode, after an agent listed the obligations still due](docs/screenshot.png)
+
+</div>
 
 Open it in the ChatGPT desktop browser, or in Chrome 149+ with the WebMCP trial
 enabled, and ask it to invoice someone. It starts in demo mode with sample data and
@@ -10,7 +24,29 @@ files nothing.
 
 Built for the [WebMCP Challenge](https://webmcp.devpost.com/).
 
-## Prior art
+## ✨ At a glance
+
+- 🧾 **Verifactu invoices**: chained fingerprints and QR, following the AEAT specification, with the official worked examples used verbatim as tests.
+- 📅 **Filing calendar**: quarterly deadlines computed, not hardcoded per year.
+- 📊 **Modelo 303**: VAT return prepared as numbered boxes, ready to transcribe.
+- 🔐 **Your browser, your certificate**: records live in IndexedDB; there is no server to send them to.
+- 🤖 **Agent and human, same buttons**: tools and UI call the same functions in `src/lib/actions.ts`.
+- 🧪 **Real regression tests for every tool**, driven through Chrome's CDP `WebMCP` domain.
+- ✅ **Accepted by the AEAT preproduction service** (see below).
+
+## 🚀 Quickstart
+
+```bash
+npm install
+npm run dev            # http://localhost:4321
+```
+
+To let an agent see the tools, open it in the ChatGPT desktop browser, or in
+Chrome 149+ with the WebMCP trial enabled.
+
+---
+
+## 🔍 Prior art
 
 Two Spanish products shipped AI invoicing in the same season, and both chose the same
 shape.
@@ -51,7 +87,7 @@ tools are a few hundred lines registered on `document.modelContext` under an MIT
 licence, so any Spanish invoicing site — including those two — can adopt them directly.
 That is a better thing for this to be than a product.
 
-## Why this is a WebMCP project and not an MCP server
+## 🌐 Why this is a WebMCP project and not an MCP server
 
 Spain has no open identity APIs. Cl@ve is closed to private developers, and acting
 with someone's digital certificate means holding their private key — which no
@@ -67,7 +103,7 @@ in the already-authenticated tab, every record stays in IndexedDB, and each tool
 changes the page the person is looking at — so the confirmation is the document
 itself, not a summary they have to take on trust.
 
-## Everything the agent can do, you can do
+## 🤝 Everything the agent can do, you can do
 
 There is a New invoice form, a quarter picker for the VAT return, and a Prepare button
 on every invoice. They are not a parallel implementation: the tools and the buttons
@@ -78,7 +114,7 @@ That is not only for people without an agent, though the page has to work for th
 It is what keeps the person in charge. If an agent could do something you could not,
 you would not really be the one deciding — you would be asking.
 
-## What every tool has to earn
+## 🎯 What every tool has to earn
 
 A capability only becomes a tool if all three hold:
 
@@ -89,7 +125,7 @@ A capability only becomes a tool if all three hold:
 
 Anything failing one of those is a chatbot with extra steps, and was cut.
 
-## Two modes
+## 🎭 Two modes
 
 Whoever opens this has never registered as a Spanish freelancer, has no invoices
 and no certificate. So there are two modes, and demo is the one you land in.
@@ -116,7 +152,7 @@ site, so a missed filter cannot mix sample invoices into real totals. Real mode
 with an unfinished profile refuses to answer rather than borrowing demo values,
 because confident wrong deadlines are worse than no deadlines.
 
-### Switching modes is not a tool
+### 🚫 Switching modes is not a tool
 
 An agent that could move someone from demo to real could get them to sign
 something real while they believed they were trying a demo. The switch is a
@@ -125,7 +161,7 @@ button, reachable only by a person, and a test asserts no tool exposes it.
 Every tool result carries its mode, so an agent cannot report sample data as
 real even by accident.
 
-## Tools
+## 🛠️ Tools
 
 | Tool | What it needs to know about you | What you get |
 |---|---|---|
@@ -135,7 +171,7 @@ real even by accident.
 | `export_submission` | the invoice's stored fingerprint and generation time | the SOAP request the AEAT expects, as a file you send yourself |
 | `ping` | — | health check used by the test suite |
 
-## What is real and what is not
+## ⚖️ What is real and what is not
 
 Being precise about this matters more than looking finished.
 
@@ -162,7 +198,7 @@ Being precise about this matters more than looking finished.
   to private developers, or require being a registered *colaborador social*.
   Claiming otherwise would be a lie a judge could check.
 
-## Demonstrating without inventing anything real
+## 🧪 Demonstrating without inventing anything real
 
 Repeating a demo means issuing the same invoices over and over. That is only safe
 if nothing about them can be mistaken for a record of something that happened.
@@ -183,12 +219,12 @@ if nothing about them can be mistaken for a record of something that happened.
 The preproduction environment exists so developers can send test records with a
 real certificate and no fiscal consequences. Using it that way is what it is for.
 
-## Verified against the tax agency, not just against the schema
+## ✅ Verified against the tax agency, not just against the schema
 
 A record produced by this app has been accepted by the AEAT preproduction
 service:
 
-```
+```text
 Envío            Correcto
 CSV              A-2DL83NSPLJHYMY
 Registro         Correcto
@@ -210,12 +246,12 @@ Two things that took getting there, both worth knowing before anyone tries:
   está identificado en el censo de la AEAT". Being safe to demonstrate with and
   being acceptable to file are the same property with opposite signs.
 
-## Why it prepares but never sends
+## ✋ Why it prepares but never sends
 
 Not a policy. A browser cannot reach the tax agency, and this is checkable in
 half a minute:
 
-```
+```console
 $ curl -s -i -X OPTIONS https://prewww1.aeat.es/wlpl/TIKE-CONT/ws/SistemaFacturacion/VerifactuSOAP \
     -H 'Origin: https://example.com' -H 'Access-Control-Request-Method: POST'
 HTTP/2 302
@@ -243,17 +279,7 @@ That does not walk back the boundary. The browser still cannot send, nothing in
 it runs in a page, the preproduction endpoint is fixed, and it refuses to send an
 envelope that names production at all.
 
-## Running it
-
-```bash
-npm install
-npm run dev            # http://localhost:4321
-```
-
-To let an agent see the tools, open it in the ChatGPT desktop browser, or in
-Chrome 149+ with the WebMCP trial enabled.
-
-## Testing
+## 🧪 Testing
 
 Unit tests cover the date arithmetic, where mistakes are invisible to the eye:
 
@@ -291,13 +317,13 @@ The one thing it cannot check is whether an agent *chooses* the right tool from 
 vague sentence. That still needs a person and a real agent, and it is what the
 tool descriptions are tuned against.
 
-## Where this goes
+## 🔭 Where this goes
 
 The identity gap has a closing date. Under eIDAS 2 (Regulation (EU) 2024/1183),
 member states must offer an official digital wallet by 24 November 2026. When
 that lands, the same tools can prepare and the wallet can sign.
 
-## Deploying it
+## 📦 Deploying it
 
 The build takes a base path, because a project site on GitHub Pages is served from a
 subdirectory:
@@ -317,11 +343,19 @@ that the tools still register.
 
 Pushing to `main` deploys via GitHub Actions.
 
-## The long version
+## 📖 The long version
 
 [`docs/build-notes.md`](docs/build-notes.md) — what we were aiming at, what the tax
 agency said back, and the four things that cost us an afternoon each.
 
-## License
+## 📄 License
 
-MIT
+[MIT](LICENSE)
+
+---
+
+<div align="center">
+
+Made by **Marc Garcia** · [marcgarcia.dev](https://marcgarcia.dev) · [@_marc_garcia on X](https://x.com/_marc_garcia) · [GitHub](https://github.com/Markcial)
+
+</div>
