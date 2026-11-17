@@ -356,6 +356,6 @@ agency said back, and the four things that cost us an afternoon each.
 
 <div align="center">
 
-Made by **Marc Garcia** · [marcgarcia.dev](https://marcgarcia.dev) · [@_marc_garcia on X](https://x.com/_marc_garcia) · [GitHub](https://github.com/Markcial)
+Made by **Marc Garcia** · [marcgarcia.dev](https://marcgarcia.dev) · [@marc_garcia on X](https://x.com/marc_garcia) · [GitHub](https://github.com/Markcial)
 
 </div>
